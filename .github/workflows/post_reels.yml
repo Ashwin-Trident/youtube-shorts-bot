@@ -38,15 +38,9 @@ jobs:
             requests \
             TTS
 
-      # 5. Verify MoviePy installation
-      - name: Verify MoviePy
-        run: python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('✅ MoviePy works!')"
-
-      # 6. Run your YouTube bot
+      # 5. Run your YouTube bot
       - name: Run YouTube Bot
         env:
-          CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python youtube_bot.py
