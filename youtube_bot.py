@@ -10,7 +10,8 @@ from base64 import b64decode
 
 # ----------------- Config -----------------
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-YOUTUBE_TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # GitHub secret with your token.json in base64
+YOUTUBE_TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # base64 of token.json
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")            # optional
 FINAL_FILE = "final.mp4"
 VIDEO_FILE = "background.mp4"
 AUDIO_FILE = "voice.wav"
@@ -18,37 +19,37 @@ AUDIO_FILE = "voice.wav"
 # ----------------- AI-Generated Quote -----------------
 def generate_ai_quote():
     """
-    Generates a random topic and quote using free GPT model (if you have OpenAI API key)
-    For fully free offline, you can replace with a local LLM.
+    Generates a topic and quote.
+    Uses OpenAI API if available, otherwise falls back to random quotes.
     """
-    try:
-        import openai
-        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-        openai.api_key = OPENAI_API_KEY
-        prompt = (
-            "Generate a short, catchy YouTube Shorts style topic and quote. "
-            "Return JSON like this: {\"topic\": \"Motivation\", \"quote\": \"Believe in yourself!\"}"
-        )
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":prompt}],
-            temperature=0.8
-        )
-        data = json.loads(response.choices[0].message['content'])
-        return data['topic'], data['quote']
-    except Exception:
-        # fallback if OpenAI API not available
-        topics = ["Motivation","Tech","Space","Life","Inspiration"]
-        quotes = [
-            "Believe in yourself!",
-            "Every day is a new opportunity.",
-            "Technology shapes our future.",
-            "Happiness is in small moments.",
-            "The universe is vast and amazing."
-        ]
-        topic = random.choice(topics)
-        quote = random.choice(quotes)
-        return topic, quote
+    if OPENAI_API_KEY:
+        try:
+            import openai
+            openai.api_key = OPENAI_API_KEY
+            prompt = (
+                "Generate a short, catchy YouTube Shorts topic and quote. "
+                "Return JSON like: {\"topic\": \"Motivation\", \"quote\": \"Believe in yourself!\"}"
+            )
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role":"user","content":prompt}],
+                temperature=0.8
+            )
+            data = json.loads(response.choices[0].message['content'])
+            return data['topic'], data['quote']
+        except Exception as e:
+            print("⚠️ OpenAI API failed, using fallback:", e)
+
+    # fallback free random quotes
+    topics = ["Motivation","Tech","Space","Life","Inspiration"]
+    quotes = [
+        "Believe in yourself!",
+        "Every day is a new opportunity.",
+        "Technology shapes our future.",
+        "Happiness is in small moments.",
+        "The universe is vast and amazing."
+    ]
+    return random.choice(topics), random.choice(quotes)
 
 # ----------------- Generate TTS -----------------
 def generate_voice(quote_text):
@@ -92,7 +93,6 @@ def create_video(quote_text):
 def upload_youtube():
     if not YOUTUBE_TOKEN_JSON_B64:
         raise Exception("ERROR: TOKEN_JSON_B64 secret is empty!")
-
     print("🚀 Uploading to YouTube Shorts...")
     token_json = json.loads(b64decode(YOUTUBE_TOKEN_JSON_B64))
     creds = Credentials.from_authorized_user_info(token_json)
@@ -105,7 +105,7 @@ def upload_youtube():
                 "title": "AI Generated Quote Short",
                 "description": "Automatically generated YouTube Shorts with AI quotes",
                 "tags": ["ai","quotes","shorts"],
-                "categoryId": "27"  # Education / Science & Tech alternative
+                "categoryId": "27"  # Education / Science & Tech
             },
             "status": {"privacyStatus": "public"}
         },
