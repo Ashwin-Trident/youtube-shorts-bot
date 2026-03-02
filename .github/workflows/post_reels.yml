@@ -1,34 +1,35 @@
-name: Auto YouTube Shorts Bot
+name: Auto YouTube Shorts
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # daily 9AM UTC
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
-      - name: Install FFmpeg and ImageMagick
+      - name: Install system packages
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick
-          # Allow safe annotate operations
-          sudo sed -i 's/<policy domain="path" rights="none" pattern="@*"/<policy domain="path" rights="read|write" pattern="@*"/' /etc/ImageMagick-6/policy.xml
 
-      - name: Install Python Packages
+      - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install moviepy google-api-python-client google-auth google-auth-oauthlib requests TTS openai
+          python -m pip install --upgrade pip
+          pip install moviepy==1.0.3 imageio imageio-ffmpeg
+          pip install google-api-python-client google-auth google-auth-oauthlib
+          pip install requests TTS openai
 
-      - name: Run YouTube Bot
+      - name: Run Bot
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
