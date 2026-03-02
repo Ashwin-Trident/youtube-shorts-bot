@@ -2,23 +2,27 @@ name: Auto YouTube Shorts Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # runs daily at 9AM UTC
+    - cron: '0 9 * * *'  # daily at 9AM UTC
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install Dependencies
+      - name: Install Python Packages
         run: |
           pip install --upgrade pip
           pip install google-api-python-client google-auth google-auth-oauthlib moviepy requests TTS
