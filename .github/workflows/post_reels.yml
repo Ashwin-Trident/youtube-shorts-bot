@@ -1,4 +1,4 @@
-name: Auto YouTube Shorts Bot
+name: Free AI YouTube Shorts Bot
 
 on:
   schedule:
@@ -31,11 +31,9 @@ jobs:
           pip install google-api-python-client google-auth google-auth-oauthlib
           pip install requests
           pip install TTS
-          pip install openai==0.28
 
-      - name: Run YouTube Bot
+      - name: Run Bot
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
