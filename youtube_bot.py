@@ -1,13 +1,13 @@
 import os
 import random
-import requests
+import base64
+import json
 from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, ColorClip, CompositeVideoClip
+from moviepy.config import change_settings
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from TTS.api import TTS
-import base64
-import json
 
 # -------------------------------
 # Config
@@ -15,10 +15,18 @@ import json
 VIDEO_FILE = "animation.mp4"
 AUDIO_FILE = "voice.wav"
 FINAL_FILE = "final.mp4"
-PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")  # optional for stock videos
+TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")   # Base64 of token.json
 
-# List of thoughtful quotes (free)
+# -------------------------------
+# Fix ImageMagick path for MoviePy TextClip
+# -------------------------------
+# For Windows local: change to full path if necessary
+change_settings({"IMAGEMAGICK_BINARY": "magick"})
+
+# -------------------------------
+# List of thoughtful quotes
+# -------------------------------
 THOUGHTS = [
     "Believe in yourself, even when no one else does.",
     "Small steps every day lead to big changes.",
@@ -35,7 +43,6 @@ THOUGHTS = [
 # -------------------------------
 # Helper Functions
 # -------------------------------
-
 def get_thought():
     return random.choice(THOUGHTS)
 
@@ -66,6 +73,9 @@ def merge_audio_video():
 
 def upload_youtube():
     print("🚀 Uploading to YouTube Shorts...")
+    if not TOKEN_JSON_B64:
+        raise ValueError("ERROR: TOKEN_JSON_B64 secret is empty!")
+    
     # Decode token.json from Base64
     token_json = json.loads(base64.b64decode(TOKEN_JSON_B64).decode("utf-8"))
     creds = Credentials.from_authorized_user_info(token_json)
