@@ -1,53 +1,58 @@
-import requests, random, os
+import json
+import random
+import requests
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+import os
 
-# YouTube Shorts resolution
-WIDTH, HEIGHT = 720, 1280
+# -------------------------
+# Config
+# -------------------------
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")  # set in GitHub secrets
+QUOTE_FILE = "quotes.json"
+OUTPUT_FILE = "short.mp4"
 
-# Pexels API key (get free from https://www.pexels.com/api/)
-PEXELS_API_KEY = "PEXELS_API_KEY"
-
-# Themes for quotes
-THEMES = ["nature", "city", "mountain", "beach", "forest", "space"]
-
+# -------------------------
+# Functions
+# -------------------------
 def get_quote():
-    r = requests.get("https://api.quotable.io/random")
-    if r.status_code == 200:
-        data = r.json()
-        return data["content"]
-    return "Dream big and shine!"
+    with open(QUOTE_FILE, "r") as f:
+        quotes = json.load(f)
+    return random.choice(quotes)
 
-def get_stock_video(query):
+def get_video(keyword="nature"):
     headers = {"Authorization": PEXELS_API_KEY}
-    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&orientation=portrait&size=medium&per_page=10", headers=headers)
-    data = r.json()
-    if data["videos"]:
-        video_url = random.choice(data["videos"])["video_files"][0]["link"]
-        filename = f"{query}.mp4"
-        with open(filename, "wb") as f:
-            f.write(requests.get(video_url).content)
-        return filename
-    return None
+    url = f"https://api.pexels.com/videos/search?query={keyword}&per_page=1"
+    r = requests.get(url, headers=headers).json()
+    if "videos" in r and r["videos"]:
+        return r["videos"][0]["video_files"][0]["link"]
+    else:
+        # fallback video if API returns nothing
+        return "https://player.vimeo.com/external/449387312.sd.mp4?s=xxx"  # Replace with free video URL
 
 def create_youtube_short():
+    # 1. Get quote
     quote = get_quote()
-    theme = random.choice(THEMES)
-    print(f"💡 Quote: {quote}")
-    print(f"🎬 Theme video: {theme}")
+    print(f"💡 Selected quote: {quote}")
 
-    video_file = get_stock_video(theme)
-    if not video_file:
-        print("❌ Could not fetch video")
-        return
+    # 2. Pick a keyword from the quote
+    keyword = random.choice([w for w in quote.split() if len(w) > 3])
+    print(f"🎬 Searching video for keyword: {keyword}")
 
-    clip = VideoFileClip(video_file).resize(height=HEIGHT).crop(x1=0, y1=0, width=WIDTH, height=HEIGHT)
-    
-    txt_clip = TextClip(quote, fontsize=60, color="white", method="caption", size=(WIDTH-60, None), align="center")
-    txt_clip = txt_clip.set_position(("center", HEIGHT//2 - 100)).set_duration(clip.duration)
+    # 3. Get video URL
+    video_url = get_video(keyword)
+    print(f"🎥 Video URL: {video_url}")
 
-    final_clip = CompositeVideoClip([clip, txt_clip])
-    final_clip.write_videofile("youtube_short.mp4", fps=24)
-    print("✅ Video saved as youtube_short.mp4")
+    # 4. Create MoviePy clip
+    clip = VideoFileClip(video_url).subclip(0, 15)  # 15-second short
+    txt_clip = TextClip(quote, fontsize=50, color="white", method="caption", size=clip.size)
+    txt_clip = txt_clip.set_position("center").set_duration(clip.duration)
 
+    final = CompositeVideoClip([clip, txt_clip])
+    final.write_videofile(OUTPUT_FILE, fps=24)
+    print(f"✅ Short saved as {OUTPUT_FILE}")
+
+# -------------------------
+# Main
+# -------------------------
 if __name__ == "__main__":
     create_youtube_short()
