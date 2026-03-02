@@ -22,7 +22,7 @@ jobs:
           python-version: '3.11'
 
       # 3. Install system dependencies
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick
@@ -37,7 +37,8 @@ jobs:
             requests \
             google-api-python-client \
             google-auth \
-            google-auth-oauthlib
+            google-auth-oauthlib \
+            TTS
 
       # 5. Verify MoviePy
       - name: Verify MoviePy
@@ -47,11 +48,12 @@ jobs:
       - name: List files
         run: ls -R
 
-      # 7. Run YouTube Shorts Bot
+      # 7. Run YouTube Bot
       - name: Run YouTube Bot
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-        run: python youtube_shorts_bot.py
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python youtube_bot.py
