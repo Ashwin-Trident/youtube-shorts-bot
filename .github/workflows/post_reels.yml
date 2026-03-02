@@ -26,7 +26,11 @@ jobs:
 
       # 4. Install ImageMagick (required for TextClip animation)
       - name: Install ImageMagick
-        run: sudo apt-get install -y imagemagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          # Allow TextClip to work on GitHub runner
+          sudo sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/' /etc/ImageMagick-6/policy.xml
 
       # 5. Install Python dependencies
       - name: Install Python Packages
@@ -44,7 +48,7 @@ jobs:
 
       # 6. Verify MoviePy installation
       - name: Verify MoviePy
-        run: python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('✅ MoviePy works!')"
+        run: python -c "from moviepy.editor import TextClip, VideoFileClip; print('✅ MoviePy works!')"
 
       # 7. Run YouTube Bot
       - name: Run YouTube Bot
