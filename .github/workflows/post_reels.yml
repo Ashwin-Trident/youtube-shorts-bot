@@ -29,12 +29,9 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install \
             moviepy==1.0.3 \
-            google-api-python-client \
-            google-auth \
-            google-auth-oauthlib \
             requests
 
       - name: Run YouTube Shorts Bot
         env:
-          TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python youtube_bot.py
