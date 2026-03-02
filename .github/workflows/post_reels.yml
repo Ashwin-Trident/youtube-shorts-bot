@@ -10,17 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout Repo
+      # 1. Checkout your repository
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2. Setup Python
-      - name: Setup Python
+      # 2. Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3. Install FFmpeg
+      # 3. Install FFmpeg (required by MoviePy)
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
@@ -36,10 +36,13 @@ jobs:
             google-auth \
             google-auth-oauthlib \
             requests \
-            TTS \
-            numpy
+            TTS
 
-      # 5. Run YouTube Bot
+      # 5. Verify MoviePy installation
+      - name: Verify MoviePy
+        run: python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('✅ MoviePy works!')"
+
+      # 6. Run your YouTube bot
       - name: Run YouTube Bot
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
