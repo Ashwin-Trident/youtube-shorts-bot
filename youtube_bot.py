@@ -47,7 +47,7 @@ def download_video(query="technology"):
         r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers).json()
         if not r.get("videos"):
             raise Exception("No videos found on Pexels.")
-        # Pick the highest resolution video
+        # Pick highest resolution video
         url = sorted(r["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
         r2 = requests.get(url)
         with open(VIDEO_FILE, "wb") as f:
