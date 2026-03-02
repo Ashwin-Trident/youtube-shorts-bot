@@ -1,4 +1,3 @@
-# .github/workflows/post_reels.yml
 name: Auto YouTube Shorts Bot
 
 on:
@@ -11,24 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3. Install system dependencies
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick
 
-      # 4. Install Python packages
-      - name: Install Python Packages
+      - name: Install Python packages
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install \
@@ -37,23 +32,15 @@ jobs:
             requests \
             google-api-python-client \
             google-auth \
-            google-auth-oauthlib \
-            TTS
+            google-auth-oauthlib
 
-      # 5. Verify MoviePy
       - name: Verify MoviePy
         run: python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('✅ MoviePy works!')"
 
-      # 6. List repo files (optional, for debugging)
-      - name: List files
-        run: ls -R
-
-      # 7. Run YouTube Bot
       - name: Run YouTube Bot
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python youtube_bot.py
