@@ -7,7 +7,6 @@ from TTS.api import TTS
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import json
 
 # -------------------------
 # CONFIG
@@ -19,7 +18,7 @@ FINAL_FILE = "final.mp4"
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # base64 token.json from GitHub secrets
+TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # Must be set in GitHub Secrets
 
 # -------------------------
 # FUNCTIONS
@@ -72,11 +71,7 @@ def upload_youtube():
     if not TOKEN_JSON_B64:
         raise ValueError("ERROR: TOKEN_JSON_B64 secret is empty!")
 
-    try:
-        decoded = base64.b64decode(TOKEN_JSON_B64).decode("utf-8")
-    except Exception as e:
-        raise ValueError(f"ERROR: Failed to decode TOKEN_JSON_B64: {e}")
-
+    decoded = base64.b64decode(TOKEN_JSON_B64).decode("utf-8")
     if not decoded.strip().startswith("{"):
         raise ValueError("ERROR: Decoded TOKEN_JSON_B64 is not valid JSON.")
 
@@ -94,7 +89,7 @@ def upload_youtube():
                 "title": "Amazing AI Fact",
                 "description": "Auto generated AI content",
                 "tags": ["ai", "facts", "shorts"],
-                "categoryId": "28"  # Science & Tech
+                "categoryId": "28"
             },
             "status": {"privacyStatus": "public"}
         },
