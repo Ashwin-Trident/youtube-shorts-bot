@@ -3,7 +3,6 @@ import random
 import base64
 import json
 from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, ColorClip, CompositeVideoClip
-from moviepy.config import change_settings
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
@@ -15,17 +14,11 @@ from TTS.api import TTS
 VIDEO_FILE = "animation.mp4"
 AUDIO_FILE = "voice.wav"
 FINAL_FILE = "final.mp4"
-PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")  # optional for stock videos
-TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")   # Base64 of token.json
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
+TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")
 
 # -------------------------------
-# Fix ImageMagick path for MoviePy TextClip
-# -------------------------------
-# For Windows local: change to full path if necessary
-change_settings({"IMAGEMAGICK_BINARY": "magick"})
-
-# -------------------------------
-# List of thoughtful quotes
+# Thoughts / Quotes
 # -------------------------------
 THOUGHTS = [
     "Believe in yourself, even when no one else does.",
@@ -41,7 +34,7 @@ THOUGHTS = [
 ]
 
 # -------------------------------
-# Helper Functions
+# Helper functions
 # -------------------------------
 def get_thought():
     return random.choice(THOUGHTS)
@@ -54,9 +47,7 @@ def generate_voice(text):
 
 def create_animation(text):
     print("🎨 Creating animated video...")
-    # Background color
     bg = ColorClip(size=(720, 1280), color=(30, 30, 30)).set_duration(10)
-    # Text animation
     txt = TextClip(text, fontsize=60, color='white', size=(680, 1000), method='caption')
     txt = txt.set_position('center').set_duration(10).fadein(1).fadeout(1)
     video = CompositeVideoClip([bg, txt])
@@ -76,7 +67,6 @@ def upload_youtube():
     if not TOKEN_JSON_B64:
         raise ValueError("ERROR: TOKEN_JSON_B64 secret is empty!")
     
-    # Decode token.json from Base64
     token_json = json.loads(base64.b64decode(TOKEN_JSON_B64).decode("utf-8"))
     creds = Credentials.from_authorized_user_info(token_json)
     
@@ -88,7 +78,7 @@ def upload_youtube():
                 "title": "💡 Thoughtful Reel",
                 "description": "Auto-generated thoughtful quote reel.",
                 "tags": ["thoughts", "reels", "motivational", "shorts"],
-                "categoryId": "22"  # People & Blogs
+                "categoryId": "22"
             },
             "status": {"privacyStatus": "public"}
         },
@@ -102,10 +92,8 @@ def upload_youtube():
 # -------------------------------
 def main():
     try:
-        print("🎬 Generating random thought...")
         thought = get_thought()
         print(f"💭 Thought: {thought}")
-        
         generate_voice(thought)
         create_animation(thought)
         merge_audio_video()
