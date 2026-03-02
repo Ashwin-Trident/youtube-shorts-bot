@@ -1,4 +1,4 @@
-name: Auto YouTube Shorts Bot
+name: Auto YouTube Shorts
 
 on:
   schedule:
@@ -10,49 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      # 2. Set up Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3. Install FFmpeg (required by MoviePy)
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      # 4. Install ImageMagick (required for TextClip animation)
-      - name: Install ImageMagick
+      - name: Install FFmpeg and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y imagemagick
-          # Fix policy.xml to allow TextClip to create text/animations
-          sudo sed -i 's|rights="none"|rights="read|write"|' /etc/ImageMagick-6/policy.xml
+          sudo apt-get install -y ffmpeg imagemagick
 
-      # 5. Install Python dependencies
       - name: Install Python Packages
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install \
-            moviepy==1.0.3 \
-            imageio \
-            imageio-ffmpeg \
-            google-api-python-client \
-            google-auth \
-            google-auth-oauthlib \
-            requests \
-            TTS
+          python -m pip install moviepy==1.0.3 imageio imageio-ffmpeg google-api-python-client google-auth google-auth-oauthlib requests TTS openai
 
-      # 6. Verify MoviePy installation
-      - name: Verify MoviePy
-        run: python -c "from moviepy.editor import TextClip, VideoFileClip; print('✅ MoviePy works!')"
-
-      # 7. Run YouTube Bot
       - name: Run YouTube Bot
         env:
-          TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python youtube_bot.py
