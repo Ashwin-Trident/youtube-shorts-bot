@@ -3,26 +3,35 @@ import random
 import requests
 import base64
 from moviepy.editor import VideoFileClip, AudioFileClip
-from TTS.api import TTS
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
+from TTS.api import TTS
 
-# -------------------------
-# CONFIG
-# -------------------------
+# ----------------------
+# Configuration
+# ----------------------
 TOPICS = ["AI", "Motivation", "Tech", "Finance", "Space"]
 VIDEO_FILE = "video.mp4"
 AUDIO_FILE = "voice.wav"
 FINAL_FILE = "final.mp4"
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # Must be set in GitHub Secrets
+TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")
 
-# -------------------------
-# FUNCTIONS
-# -------------------------
+if not TOKEN_JSON_B64:
+    raise ValueError("ERROR: TOKEN_JSON_B64 secret is empty!")
+
+# Decode token.json from Base64
+with open("token.json", "wb") as f:
+    f.write(base64.b64decode(TOKEN_JSON_B64))
+
+# Initialize YouTube credentials
+creds = Credentials.from_authorized_user_file("token.json")
+youtube = build("youtube", "v3", credentials=creds)
+
+# ----------------------
+# Functions
+# ----------------------
 def generate_script():
     topic = random.choice(TOPICS)
     return f"""Did you know about {topic}?
@@ -45,13 +54,11 @@ def generate_voice(script):
 def download_video(query="technology"):
     print("📹 Downloading stock video...")
     headers = {"Authorization": PEXELS_API_KEY}
-    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers)
-    if r.status_code != 200:
-        raise Exception(f"Pexels API error: {r.status_code} - {r.text}")
-    data = r.json()
-    if not data.get("videos"):
+    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers).json()
+    if not r.get("videos"):
         raise Exception("No videos found on Pexels.")
-    url = sorted(data["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
+    # Pick highest resolution
+    url = sorted(r["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
     r2 = requests.get(url)
     with open(VIDEO_FILE, "wb") as f:
         f.write(r2.content)
@@ -67,21 +74,6 @@ def merge_video_audio():
 
 def upload_youtube():
     print("🚀 Uploading to YouTube Shorts...")
-
-    if not TOKEN_JSON_B64:
-        raise ValueError("ERROR: TOKEN_JSON_B64 secret is empty!")
-
-    decoded = base64.b64decode(TOKEN_JSON_B64).decode("utf-8")
-    if not decoded.strip().startswith("{"):
-        raise ValueError("ERROR: Decoded TOKEN_JSON_B64 is not valid JSON.")
-
-    with open("token.json", "w") as f:
-        f.write(decoded)
-    print("✅ token.json written successfully.")
-
-    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    youtube = build("youtube", "v3", credentials=creds)
-
     request = youtube.videos().insert(
         part="snippet,status",
         body={
@@ -89,18 +81,18 @@ def upload_youtube():
                 "title": "Amazing AI Fact",
                 "description": "Auto generated AI content",
                 "tags": ["ai", "facts", "shorts"],
-                "categoryId": "28"
+                "categoryId": "28"  # Science & Tech
             },
             "status": {"privacyStatus": "public"}
         },
-        media_body=MediaFileUpload(FINAL_FILE)
+        media_body=FINAL_FILE
     )
     response = request.execute()
     print("✅ Uploaded Video ID:", response["id"])
 
-# -------------------------
-# MAIN
-# -------------------------
+# ----------------------
+# Main
+# ----------------------
 def main():
     try:
         print("🎬 Generating script...")
