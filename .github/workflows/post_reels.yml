@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout your repository
+      # 1. Checkout repository
       - name: Checkout Repo
         uses: actions/checkout@v3
 
@@ -42,9 +42,9 @@ jobs:
       - name: Verify MoviePy
         run: python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('✅ MoviePy works!')"
 
-      # 6. Run your YouTube bot
+      # 6. Run YouTube Bot
       - name: Run YouTube Bot
         env:
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           TOKEN_JSON_B64: ${{ secrets.TOKEN_JSON_B64 }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python youtube_bot.py
