@@ -2,7 +2,7 @@ name: Auto YouTube Shorts Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # daily at 9 AM UTC
+    - cron: '0 9 * * *'  # runs daily at 9 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -10,28 +10,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout Repo
         uses: actions/checkout@v3
 
+      # 2. Setup Python
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
+      # 3. Install FFmpeg (required by MoviePy)
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Install fonts
-        run: sudo apt-get install -y fonts-dejavu
-
+      # 4. Install Python dependencies
       - name: Install Python Packages
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install \
             moviepy==1.0.3 \
-            requests
+            requests \
+            Pillow
 
+      # 5. Verify MoviePy
+      - name: Verify MoviePy
+        run: python -c "from moviepy.editor import VideoFileClip, CompositeVideoClip; from PIL import Image; print('✅ MoviePy and Pillow work!')"
+
+      # 6. Run YouTube bot
       - name: Run YouTube Shorts Bot
         env:
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}  # add your free Pexels API key
         run: python youtube_bot.py
