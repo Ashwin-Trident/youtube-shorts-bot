@@ -2,7 +2,7 @@ name: Auto YouTube Shorts Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # runs daily at 9AM UTC
+    - cron: '0 9 * * *'  # daily at 9AM UTC
   workflow_dispatch:
 
 jobs:
@@ -13,16 +13,19 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Upgrade pip and install dependencies
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install moviepy and dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools wheel
-          pip install google-api-python-client google-auth google-auth-oauthlib requests TTS moviepy==2.0.0 imageio[ffmpeg]
+          pip install moviepy==2.0.0
+          pip install imageio imageio-ffmpeg
+          pip install google-api-python-client google-auth google-auth-oauthlib requests TTS
 
       - name: Run YouTube Bot
         env:
