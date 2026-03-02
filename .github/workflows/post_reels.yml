@@ -23,8 +23,13 @@ jobs:
 
       - name: Install Python Packages
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install moviepy==2.0.0 imageio imageio-ffmpeg google-api-python-client google-auth google-auth-oauthlib requests TTS
+
+      - name: Verify packages
+        run: |
+          python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('MoviePy works!')"
+          python -c "import TTS; print('TTS works!')"
 
       - name: Run YouTube Bot
         env:
