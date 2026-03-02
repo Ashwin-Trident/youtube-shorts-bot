@@ -1,8 +1,8 @@
-# youtube_bot.py
+# youtube_bot.py (100% FREE VERSION - NO OPENAI)
 
 import os
+import random
 import requests
-import openai
 from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -13,7 +13,6 @@ from TTS.api import TTS
 # ENV VARIABLES
 # =============================
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -24,30 +23,32 @@ AUDIO_FILE = "voice.wav"
 FINAL_FILE = "final.mp4"
 
 # =============================
-# 1️⃣ Generate AI Quote
+# 1️⃣ FREE AI-STYLE QUOTE GENERATOR
 # =============================
+
+topics = [
+    "success", "dreams", "discipline", "mindset",
+    "happiness", "future", "technology", "life"
+]
+
+quote_templates = [
+    "Your {topic} depends on what you do today.",
+    "Small steps create big {topic}.",
+    "The secret to {topic} is consistency.",
+    "If you believe in your {topic}, nothing can stop you.",
+    "{topic.capitalize()} begins the moment you decide."
+]
 
 def generate_quote():
-    print("💡 Generating AI quote...")
-    openai.api_key = OPENAI_API_KEY
-
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{
-            "role": "user",
-            "content": "Give me one short powerful motivational thought for YouTube Shorts."
-        }],
-        temperature=0.9,
-        max_tokens=50
-    )
-
-    quote = response.choices[0].message.content.strip()
-    print("✅ Quote:", quote)
-    return quote
+    topic = random.choice(topics)
+    template = random.choice(quote_templates)
+    quote = template.format(topic=topic)
+    print("💡 Generated Quote:", quote)
+    return quote, topic
 
 
 # =============================
-# 2️⃣ Generate Voice
+# 2️⃣ Generate Voice (FREE)
 # =============================
 
 def generate_voice(text):
@@ -61,7 +62,7 @@ def generate_voice(text):
 # 3️⃣ Download Vertical Video
 # =============================
 
-def download_video(query="nature"):
+def download_video(query):
     print("📥 Downloading stock video...")
     headers = {"Authorization": PEXELS_API_KEY}
     url = f"https://api.pexels.com/videos/search?query={query}&orientation=portrait&per_page=1"
@@ -81,7 +82,7 @@ def download_video(query="nature"):
 
 
 # =============================
-# 4️⃣ Create Shorts Video
+# 4️⃣ Create Final Shorts Video
 # =============================
 
 def create_video(quote):
@@ -128,14 +129,12 @@ def upload_youtube():
         part="snippet,status",
         body={
             "snippet": {
-                "title": "Daily AI Motivation 🔥 #shorts",
-                "description": "AI Generated Motivation Video",
-                "tags": ["shorts", "motivation", "ai"],
+                "title": "Daily Motivation 🔥 #shorts",
+                "description": "Auto generated motivational short",
+                "tags": ["shorts", "motivation"],
                 "categoryId": "28"
             },
-            "status": {
-                "privacyStatus": "public"
-            }
+            "status": {"privacyStatus": "public"}
         },
         media_body=MediaFileUpload(FINAL_FILE)
     )
@@ -150,9 +149,9 @@ def upload_youtube():
 
 def main():
     try:
-        quote = generate_quote()
+        quote, topic = generate_quote()
         generate_voice(quote)
-        download_video("inspiration")
+        download_video(topic)
         create_video(quote)
         upload_youtube()
         print("🎉 SUCCESS: Shorts uploaded!")
