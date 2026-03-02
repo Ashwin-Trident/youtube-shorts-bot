@@ -7,6 +7,7 @@ from TTS.api import TTS
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+import json
 
 # -------------------------
 # CONFIG
@@ -45,10 +46,17 @@ def generate_voice(script):
 def download_video(query="technology"):
     print("📹 Downloading stock video...")
     headers = {"Authorization": PEXELS_API_KEY}
-    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers).json()
-    if not r.get("videos"):
+    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1")
+    if r.status_code != 200:
+        raise Exception(f"Pexels API error: {r.status_code} - {r.text}")
+    try:
+        data = r.json()
+    except json.JSONDecodeError:
+        raise Exception("Failed to parse Pexels response as JSON.")
+    
+    if not data.get("videos"):
         raise Exception("No videos found on Pexels.")
-    url = sorted(r["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
+    url = sorted(data["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
     r2 = requests.get(url)
     with open(VIDEO_FILE, "wb") as f:
         f.write(r2.content)
@@ -64,11 +72,27 @@ def merge_video_audio():
 
 def upload_youtube():
     print("🚀 Uploading to YouTube Shorts...")
-    # Decode token.json from GitHub secret
-    with open("token.json", "w") as f:
-        f.write(base64.b64decode(TOKEN_JSON_B64).decode("utf-8"))
 
-    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    if not TOKEN_JSON_B64:
+        raise ValueError("ERROR: TOKEN_JSON_B64 secret is empty!")
+
+    try:
+        decoded = base64.b64decode(TOKEN_JSON_B64).decode("utf-8")
+    except Exception as e:
+        raise ValueError(f"ERROR: Failed to decode TOKEN_JSON_B64: {e}")
+
+    if not decoded.strip().startswith("{"):
+        raise ValueError("ERROR: Decoded TOKEN_JSON_B64 is not valid JSON.")
+
+    with open("token.json", "w") as f:
+        f.write(decoded)
+    print("✅ token.json written successfully.")
+
+    try:
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    except Exception as e:
+        raise ValueError(f"ERROR: Failed to load credentials from token.json: {e}")
+
     youtube = build("youtube", "v3", credentials=creds)
 
     request = youtube.videos().insert(
@@ -78,7 +102,7 @@ def upload_youtube():
                 "title": "Amazing AI Fact",
                 "description": "Auto generated AI content",
                 "tags": ["ai", "facts", "shorts"],
-                "categoryId": "28"  # Science & Tech
+                "categoryId": "28"
             },
             "status": {"privacyStatus": "public"}
         },
