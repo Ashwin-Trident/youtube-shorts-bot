@@ -19,10 +19,10 @@ FINAL_FILE = "final.mp4"
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # GitHub secret
+TOKEN_JSON_B64 = os.environ.get("TOKEN_JSON_B64")  # base64 token.json from GitHub secrets
 
 # -------------------------
-# UTILITIES
+# FUNCTIONS
 # -------------------------
 def generate_script():
     topic = random.choice(TOPICS)
@@ -46,14 +46,10 @@ def generate_voice(script):
 def download_video(query="technology"):
     print("📹 Downloading stock video...")
     headers = {"Authorization": PEXELS_API_KEY}
-    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1")
+    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers)
     if r.status_code != 200:
         raise Exception(f"Pexels API error: {r.status_code} - {r.text}")
-    try:
-        data = r.json()
-    except json.JSONDecodeError:
-        raise Exception("Failed to parse Pexels response as JSON.")
-    
+    data = r.json()
     if not data.get("videos"):
         raise Exception("No videos found on Pexels.")
     url = sorted(data["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
@@ -88,11 +84,7 @@ def upload_youtube():
         f.write(decoded)
     print("✅ token.json written successfully.")
 
-    try:
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    except Exception as e:
-        raise ValueError(f"ERROR: Failed to load credentials from token.json: {e}")
-
+    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
     youtube = build("youtube", "v3", credentials=creds)
 
     request = youtube.videos().insert(
@@ -102,7 +94,7 @@ def upload_youtube():
                 "title": "Amazing AI Fact",
                 "description": "Auto generated AI content",
                 "tags": ["ai", "facts", "shorts"],
-                "categoryId": "28"
+                "categoryId": "28"  # Science & Tech
             },
             "status": {"privacyStatus": "public"}
         },
