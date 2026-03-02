@@ -1,137 +1,164 @@
 # youtube_bot.py
 
 import os
-import random
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, ColorClip
+import requests
+import openai
+from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from TTS.api import TTS
-import openai
 
-# ----------------------------
-# Environment Variables
-# ----------------------------
+# =============================
+# ENV VARIABLES
+# =============================
+
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-YT_CLIENT_ID = os.environ.get("CLIENT_ID")
-YT_CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-YT_REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
+CLIENT_ID = os.environ.get("CLIENT_ID")
+CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
+REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
 
-# ----------------------------
-# Filenames
-# ----------------------------
 VIDEO_FILE = "video.mp4"
 AUDIO_FILE = "voice.wav"
 FINAL_FILE = "final.mp4"
 
-# ----------------------------
-# Functions
-# ----------------------------
+# =============================
+# 1️⃣ Generate AI Quote
+# =============================
 
-def generate_ai_quote():
-    """
-    Generate a random thought/quote using OpenAI GPT.
-    """
+def generate_quote():
     print("💡 Generating AI quote...")
     openai.api_key = OPENAI_API_KEY
-    prompt = "Give me one short thought-provoking quote suitable for a YouTube Shorts reel."
+
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.8,
+        messages=[{
+            "role": "user",
+            "content": "Give me one short powerful motivational thought for YouTube Shorts."
+        }],
+        temperature=0.9,
         max_tokens=50
     )
+
     quote = response.choices[0].message.content.strip()
-    print("✅ Quote generated:", quote)
+    print("✅ Quote:", quote)
     return quote
 
+
+# =============================
+# 2️⃣ Generate Voice
+# =============================
+
 def generate_voice(text):
-    """
-    Generate voice using TTS from the quote.
-    """
-    print("🎙️ Generating voice...")
+    print("🎙 Generating voice...")
     tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
     tts.tts_to_file(text=text, file_path=AUDIO_FILE)
-    print("✅ Voice generated successfully.")
+    print("✅ Voice created")
 
-def download_video(query="animation"):
-    """
-    Download a stock video from Pexels.
-    """
-    import requests
-    print("📹 Downloading stock video...")
+
+# =============================
+# 3️⃣ Download Vertical Video
+# =============================
+
+def download_video(query="nature"):
+    print("📥 Downloading stock video...")
     headers = {"Authorization": PEXELS_API_KEY}
-    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers).json()
-    if not r.get("videos"):
-        raise Exception("No videos found on Pexels.")
-    url = sorted(r["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
-    r2 = requests.get(url)
-    with open(VIDEO_FILE, "wb") as f:
-        f.write(r2.content)
-    print("✅ Video downloaded successfully.")
+    url = f"https://api.pexels.com/videos/search?query={query}&orientation=portrait&per_page=1"
 
-def create_text_video(quote):
-    """
-    Create a video with text overlay using safe MoviePy TextClip.
-    """
-    print("🎨 Creating video with text...")
-    video = VideoFileClip(VIDEO_FILE)
-    txt_clip = TextClip(
+    response = requests.get(url, headers=headers).json()
+
+    if not response.get("videos"):
+        raise Exception("No video found!")
+
+    video_url = response["videos"][0]["video_files"][0]["link"]
+
+    r = requests.get(video_url)
+    with open(VIDEO_FILE, "wb") as f:
+        f.write(r.content)
+
+    print("✅ Video downloaded")
+
+
+# =============================
+# 4️⃣ Create Shorts Video
+# =============================
+
+def create_video(quote):
+    print("🎬 Creating final video...")
+
+    video = VideoFileClip(VIDEO_FILE).subclip(0, 15)
+
+    text_clip = TextClip(
         quote,
-        fontsize=50,
+        fontsize=60,
         color="white",
-        font="Arial-Bold",
         method="caption",
         size=(video.w * 0.8, None)
     ).set_position("center").set_duration(video.duration)
 
-    final_clip = CompositeVideoClip([video, txt_clip])
-    final_clip.write_videofile(FINAL_FILE, codec="libx264", audio_codec="aac")
-    print("✅ Video created with quote.")
+    final = CompositeVideoClip([video, text_clip])
+
+    audio = AudioFileClip(AUDIO_FILE)
+    final = final.set_audio(audio)
+
+    final.write_videofile(FINAL_FILE, codec="libx264", audio_codec="aac")
+
+    print("✅ Final video created")
+
+
+# =============================
+# 5️⃣ Upload to YouTube
+# =============================
 
 def upload_youtube():
-    """
-    Upload final video to YouTube Shorts.
-    """
     print("🚀 Uploading to YouTube Shorts...")
+
     creds = Credentials(
         None,
-        refresh_token=YT_REFRESH_TOKEN,
-        client_id=YT_CLIENT_ID,
-        client_secret=YT_CLIENT_SECRET,
-        token_uri="https://oauth2.googleapis.com/token"
+        refresh_token=REFRESH_TOKEN,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET
     )
+
     youtube = build("youtube", "v3", credentials=creds)
+
     request = youtube.videos().insert(
         part="snippet,status",
         body={
             "snippet": {
-                "title": "AI Thought for You",
-                "description": "Auto-generated AI thought for YouTube Shorts",
-                "tags": ["ai", "thoughts", "shorts", "motivation"],
+                "title": "Daily AI Motivation 🔥 #shorts",
+                "description": "AI Generated Motivation Video",
+                "tags": ["shorts", "motivation", "ai"],
                 "categoryId": "28"
             },
-            "status": {"privacyStatus": "public"}
+            "status": {
+                "privacyStatus": "public"
+            }
         },
         media_body=MediaFileUpload(FINAL_FILE)
     )
+
     response = request.execute()
     print("✅ Uploaded Video ID:", response["id"])
 
-# ----------------------------
-# Main Bot
-# ----------------------------
+
+# =============================
+# MAIN
+# =============================
+
 def main():
     try:
-        quote = generate_ai_quote()
+        quote = generate_quote()
         generate_voice(quote)
-        download_video()
-        create_text_video(quote)
+        download_video("inspiration")
+        create_video(quote)
         upload_youtube()
-        print("✅ Video posted successfully!")
+        print("🎉 SUCCESS: Shorts uploaded!")
     except Exception as e:
         print("🚨 Bot failed:", e)
+
 
 if __name__ == "__main__":
     main()
