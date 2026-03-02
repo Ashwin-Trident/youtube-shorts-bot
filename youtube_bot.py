@@ -1,86 +1,53 @@
-# youtube_bot.py
-import random
-from moviepy.editor import TextClip, CompositeVideoClip, ColorClip
-import os
-import base64
-from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
-import tempfile
+import requests, random, os
+from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 
-# -----------------------------
-# 1. Random cartoon story generator
-# -----------------------------
-CHARACTERS = ["🐶 Doggo", "🐱 Kitty", "🦊 Foxy", "🐸 Froggy", "🐵 Monkey"]
-ACTIONS = ["finds a treasure", "meets a friend", "jumps over a river", "discovers magic", "saves the day"]
-LOCATIONS = ["in the forest", "on the mountain", "at the beach", "in the city", "under the stars"]
+# YouTube Shorts resolution
+WIDTH, HEIGHT = 720, 1280
 
-def generate_story():
-    char = random.choice(CHARACTERS)
-    action = random.choice(ACTIONS)
-    location = random.choice(LOCATIONS)
-    return f"{char} {action} {location}!"
+# Pexels API key (get free from https://www.pexels.com/api/)
+PEXELS_API_KEY = "PEXELS_API_KEY"
 
-# -----------------------------
-# 2. Create animated video
-# -----------------------------
-def create_video(text, output_file="final.mp4"):
-    w, h = 720, 1280  # YouTube Shorts 9:16
-    duration = 6  # seconds per story
+# Themes for quotes
+THEMES = ["nature", "city", "mountain", "beach", "forest", "space"]
+
+def get_quote():
+    r = requests.get("https://api.quotable.io/random")
+    if r.status_code == 200:
+        data = r.json()
+        return data["content"]
+    return "Dream big and shine!"
+
+def get_stock_video(query):
+    headers = {"Authorization": PEXELS_API_KEY}
+    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&orientation=portrait&size=medium&per_page=10", headers=headers)
+    data = r.json()
+    if data["videos"]:
+        video_url = random.choice(data["videos"])["video_files"][0]["link"]
+        filename = f"{query}.mp4"
+        with open(filename, "wb") as f:
+            f.write(requests.get(video_url).content)
+        return filename
+    return None
+
+def create_youtube_short():
+    quote = get_quote()
+    theme = random.choice(THEMES)
+    print(f"💡 Quote: {quote}")
+    print(f"🎬 Theme video: {theme}")
+
+    video_file = get_stock_video(theme)
+    if not video_file:
+        print("❌ Could not fetch video")
+        return
+
+    clip = VideoFileClip(video_file).resize(height=HEIGHT).crop(x1=0, y1=0, width=WIDTH, height=HEIGHT)
     
-    # Background color (random pastel)
-    bg_color = tuple(random.randint(100, 255) for _ in range(3))
-    bg = ColorClip(size=(w,h), color=bg_color, duration=duration)
+    txt_clip = TextClip(quote, fontsize=60, color="white", method="caption", size=(WIDTH-60, None), align="center")
+    txt_clip = txt_clip.set_position(("center", HEIGHT//2 - 100)).set_duration(clip.duration)
 
-    # Text clip with animation
-    txt_clip = TextClip(text, fontsize=60, color="black", size=(w-100, None), method='caption', align='center')
-    txt_clip = txt_clip.set_position('center').set_duration(duration)
-
-    # Combine clips
-    video = CompositeVideoClip([bg, txt_clip])
-    video.write_videofile(output_file, fps=24)
-    print(f"✅ Video generated: {output_file}")
-    return output_file
-
-# -----------------------------
-# 3. Upload to YouTube Shorts
-# -----------------------------
-def upload_to_youtube(video_file):
-    token_b64 = os.getenv("TOKEN_JSON_B64")
-    if not token_b64:
-        raise Exception("ERROR: TOKEN_JSON_B64 secret is empty!")
-    
-    token_json = base64.b64decode(token_b64)
-    creds_file = tempfile.NamedTemporaryFile(delete=False)
-    creds_file.write(token_json)
-    creds_file.close()
-
-    creds = Credentials.from_authorized_user_file(creds_file.name, scopes=["https://www.googleapis.com/auth/youtube.upload"])
-    youtube = build("youtube", "v3", credentials=creds)
-
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {
-                "title": "🎨 AI Cartoon Story Reel",
-                "description": "Automatically generated cartoon story for YouTube Shorts!",
-                "tags": ["cartoon", "story", "AI", "shorts"],
-                "categoryId": "1"
-            },
-            "status": {"privacyStatus": "public"}
-        },
-        media_body=video_file
-    )
-    response = request.execute()
-    print(f"✅ Video uploaded: {response.get('id')}")
-
-# -----------------------------
-# 4. Main function
-# -----------------------------
-def main():
-    story = generate_story()
-    print(f"💡 Generated story: {story}")
-    video_file = create_video(story)
-    upload_to_youtube(video_file)
+    final_clip = CompositeVideoClip([clip, txt_clip])
+    final_clip.write_videofile("youtube_short.mp4", fps=24)
+    print("✅ Video saved as youtube_short.mp4")
 
 if __name__ == "__main__":
-    main()
+    create_youtube_short()
