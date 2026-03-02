@@ -1,163 +1,151 @@
-# youtube_bot.py (100% FREE VERSION - NO OPENAI)
-
+# youtube_shorts_bot.py
 import os
 import random
 import requests
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip
+from moviepy.editor import (
+    VideoFileClip,
+    AudioFileClip,
+    TextClip,
+    CompositeVideoClip,
+    ColorClip,
+    CompositeAudioClip
+)
+from gtts import gTTS
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
-from TTS.api import TTS
 
-# =============================
-# ENV VARIABLES
-# =============================
-
-PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-CLIENT_ID = os.environ.get("CLIENT_ID")
-CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
-
-VIDEO_FILE = "video.mp4"
-AUDIO_FILE = "voice.wav"
+# -----------------------------
+# CONFIGURATION
+# -----------------------------
+VIDEO_FILE = "stock_video.mp4"
+AUDIO_FILE = "voice.mp3"
 FINAL_FILE = "final.mp4"
+BG_MUSIC = "bg_music.mp3"  # optional, put a free loop here
 
-# =============================
-# 1️⃣ FREE AI-STYLE QUOTE GENERATOR
-# =============================
+# YouTube API credentials from GitHub Secrets or local environment
+YT_CLIENT_ID = os.environ.get("CLIENT_ID")
+YT_CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
+YT_REFRESH_TOKEN = os.environ.get("REFRESH_TOKEN")
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
-topics = [
-    "success", "dreams", "discipline", "mindset",
-    "happiness", "future", "technology", "life"
-]
+# Video settings
+WIDTH, HEIGHT = 1080, 1920  # vertical
+DURATION = 10  # seconds
 
-quote_templates = [
-    "Your {topic} depends on what you do today.",
-    "Small steps create big {topic}.",
-    "The secret to {topic} is consistency.",
-    "If you believe in your {topic}, nothing can stop you.",
-    "{topic.capitalize()} begins the moment you decide."
-]
+# -----------------------------
+# UTILITY FUNCTIONS
+# -----------------------------
 
-def generate_quote():
-    topic = random.choice(topics)
-    template = random.choice(quote_templates)
-    quote = template.format(topic=topic)
-    print("💡 Generated Quote:", quote)
-    return quote, topic
+def get_random_quote():
+    """Returns a free viral-style quote from a predefined list"""
+    quotes = [
+        "Your limitation—it's only your imagination.",
+        "Push yourself, because no one else is going to do it for you.",
+        "Great things never come from comfort zones.",
+        "Dream it. Wish it. Do it.",
+        "Success doesn’t just find you. You have to go out and get it.",
+        "Little things make big days.",
+        "Don’t stop when you’re tired. Stop when you’re done.",
+        "It’s going to be hard, but hard does not mean impossible.",
+        "Wake up with determination. Go to bed with satisfaction.",
+        "Do something today that your future self will thank you for."
+    ]
+    return random.choice(quotes)
 
+def generate_voice(text, output_file=AUDIO_FILE):
+    print("🎙️ Generating voice...")
+    tts = gTTS(text=text, lang='en')
+    tts.save(output_file)
+    print("✅ Voice generated.")
 
-# =============================
-# 2️⃣ Generate Voice (FREE)
-# =============================
-
-def generate_voice(text):
-    print("🎙 Generating voice...")
-    tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
-    tts.tts_to_file(text=text, file_path=AUDIO_FILE)
-    print("✅ Voice created")
-
-
-# =============================
-# 3️⃣ Download Vertical Video
-# =============================
-
-def download_video(query):
-    print("📥 Downloading stock video...")
+def download_stock_video(query="nature"):
+    print("📹 Downloading stock video...")
     headers = {"Authorization": PEXELS_API_KEY}
-    url = f"https://api.pexels.com/videos/search?query={query}&orientation=portrait&per_page=1"
-
-    response = requests.get(url, headers=headers).json()
-
-    if not response.get("videos"):
-        raise Exception("No video found!")
-
-    video_url = response["videos"][0]["video_files"][0]["link"]
-
-    r = requests.get(video_url)
+    r = requests.get(f"https://api.pexels.com/videos/search?query={query}&per_page=1", headers=headers).json()
+    if not r.get("videos"):
+        raise Exception("No videos found on Pexels.")
+    url = sorted(r["videos"][0]["video_files"], key=lambda x: x["width"], reverse=True)[0]["link"]
+    r2 = requests.get(url)
     with open(VIDEO_FILE, "wb") as f:
-        f.write(r.content)
+        f.write(r2.content)
+    print("✅ Video downloaded.")
 
-    print("✅ Video downloaded")
+def create_shorts_video(quote_text):
+    print("🎨 Creating animated video...")
+    # Background color clip
+    bg_clip = ColorClip(size=(WIDTH, HEIGHT), color=(30, 30, 30), duration=DURATION)
 
+    # Text animation
+    txt_clip = TextClip(
+        txt=quote_text,
+        fontsize=80,
+        color='white',
+        method='caption',
+        size=(WIDTH - 100, None)
+    ).set_position('center').set_duration(DURATION).fadein(0.5).fadeout(0.5)
 
-# =============================
-# 4️⃣ Create Final Shorts Video
-# =============================
+    # Load stock video and resize vertically
+    if os.path.exists(VIDEO_FILE):
+        video_clip = VideoFileClip(VIDEO_FILE).resize(height=HEIGHT)
+        video_clip = video_clip.crop(x_center=video_clip.w/2, width=WIDTH, y_center=video_clip.h/2, height=HEIGHT)
+        video_clip = video_clip.set_duration(DURATION)
+        final_clip = CompositeVideoClip([video_clip, txt_clip])
+    else:
+        final_clip = CompositeVideoClip([bg_clip, txt_clip])
 
-def create_video(quote):
-    print("🎬 Creating final video...")
+    # Audio
+    voice_clip = AudioFileClip(AUDIO_FILE)
+    audio_clips = [voice_clip]
+    if os.path.exists(BG_MUSIC):
+        music_clip = AudioFileClip(BG_MUSIC).volumex(0.2).set_duration(DURATION)
+        audio_clips.append(music_clip)
+    final_audio = CompositeAudioClip(audio_clips)
 
-    video = VideoFileClip(VIDEO_FILE).subclip(0, 15)
+    final_clip = final_clip.set_audio(final_audio)
+    final_clip.write_videofile(FINAL_FILE, fps=24, codec="libx264", audio_codec="aac")
+    print("✅ Video created successfully.")
 
-    text_clip = TextClip(
-        quote,
-        fontsize=60,
-        color="white",
-        method="caption",
-        size=(video.w * 0.8, None)
-    ).set_position("center").set_duration(video.duration)
-
-    final = CompositeVideoClip([video, text_clip])
-
-    audio = AudioFileClip(AUDIO_FILE)
-    final = final.set_audio(audio)
-
-    final.write_videofile(FINAL_FILE, codec="libx264", audio_codec="aac")
-
-    print("✅ Final video created")
-
-
-# =============================
-# 5️⃣ Upload to YouTube
-# =============================
-
-def upload_youtube():
+def upload_to_youtube(title="Viral Quote #Shorts", description="Auto-generated YouTube Shorts", tags=None):
     print("🚀 Uploading to YouTube Shorts...")
-
     creds = Credentials(
         None,
-        refresh_token=REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET
+        refresh_token=YT_REFRESH_TOKEN,
+        client_id=YT_CLIENT_ID,
+        client_secret=YT_CLIENT_SECRET,
+        token_uri="https://oauth2.googleapis.com/token"
     )
-
     youtube = build("youtube", "v3", credentials=creds)
-
     request = youtube.videos().insert(
         part="snippet,status",
         body={
             "snippet": {
-                "title": "Daily Motivation 🔥 #shorts",
-                "description": "Auto generated motivational short",
-                "tags": ["shorts", "motivation"],
-                "categoryId": "28"
+                "title": title,
+                "description": description,
+                "tags": tags or ["quotes", "shorts", "viral"],
+                "categoryId": "22"  # People & Blogs
             },
             "status": {"privacyStatus": "public"}
         },
         media_body=MediaFileUpload(FINAL_FILE)
     )
-
     response = request.execute()
     print("✅ Uploaded Video ID:", response["id"])
 
-
-# =============================
-# MAIN
-# =============================
+# -----------------------------
+# MAIN BOT
+# -----------------------------
 
 def main():
     try:
-        quote, topic = generate_quote()
+        quote = get_random_quote()
         generate_voice(quote)
-        download_video(topic)
-        create_video(quote)
-        upload_youtube()
-        print("🎉 SUCCESS: Shorts uploaded!")
+        download_stock_video(query="inspiration")  # choose video theme
+        create_shorts_video(quote)
+        upload_to_youtube(title=f"{quote} #Shorts")
+        print("✅ YouTube Shorts posted successfully!")
     except Exception as e:
         print("🚨 Bot failed:", e)
-
 
 if __name__ == "__main__":
     main()
