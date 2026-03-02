@@ -29,8 +29,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
-          # Allow TextClip to work on GitHub runner
-          sudo sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/' /etc/ImageMagick-6/policy.xml
+          # Fix policy.xml to allow TextClip to create text/animations
+          sudo sed -i 's|rights="none"|rights="read|write"|' /etc/ImageMagick-6/policy.xml
 
       # 5. Install Python dependencies
       - name: Install Python Packages
