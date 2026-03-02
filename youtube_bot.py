@@ -1,28 +1,28 @@
 import os
 import requests
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, CompositeVideoClip
+from moviepy.video.tools.drawing import color_gradient
+from moviepy.video.VideoClip import TextClip
+from PIL import Image, ImageDraw, ImageFont
 
-# -----------------------------
-# CONFIG
-# -----------------------------
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")  # set this in GitHub secrets
 OUTPUT_FILE = "short.mp4"
-VIDEO_DURATION = 15  # seconds
+VIDEO_DURATION = 15
+
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")  # GitHub secret
 
 # -----------------------------
-# Step 1: Get a random quote (free API)
+# Get a random quote (free)
 # -----------------------------
 def get_quote():
     try:
         r = requests.get("https://api.quotable.io/random", timeout=10)
         data = r.json()
         return f"{data['content']} — {data['author']}"
-    except Exception as e:
-        print("⚠️ Failed to get quote, using default.")
+    except:
         return "Believe in yourself — Unknown"
 
 # -----------------------------
-# Step 2: Search for free stock video on Pexels
+# Get free stock video from Pexels
 # -----------------------------
 def get_video_url(keyword="nature"):
     headers = {"Authorization": PEXELS_API_KEY}
@@ -32,15 +32,13 @@ def get_video_url(keyword="nature"):
         data = r.json()
         if data["videos"]:
             return data["videos"][0]["video_files"][0]["link"]
-        else:
-            print("⚠️ No video found, using default video")
-            return "https://player.vimeo.com/external/5184436.hd.mp4?s=example"  # fallback
-    except Exception as e:
-        print("⚠️ Pexels API error:", e)
-        return None
+    except:
+        pass
+    # fallback
+    return "https://player.vimeo.com/external/5184436.hd.mp4?s=example"
 
 # -----------------------------
-# Step 3: Download video locally
+# Download video
 # -----------------------------
 def download_video(url, filename="video.mp4"):
     r = requests.get(url, stream=True)
@@ -50,20 +48,30 @@ def download_video(url, filename="video.mp4"):
     return filename
 
 # -----------------------------
-# Step 4: Create video with quote overlay
+# Create text image with Pillow
+# -----------------------------
+def create_text_image(text, size=(720, 1280), fontsize=60):
+    img = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fontsize)
+    except:
+        font = ImageFont.load_default()
+    w, h = draw.textsize(text, font=font)
+    draw.text(((size[0]-w)/2,(size[1]-h)/2), text, font=font, fill="white")
+    path = "text.png"
+    img.save(path)
+    return path
+
+# -----------------------------
+# Create YouTube Short
 # -----------------------------
 def create_youtube_short(quote, video_file):
     clip = VideoFileClip(video_file).subclip(0, VIDEO_DURATION)
 
-    txt_clip = TextClip(
-        quote,
-        fontsize=60,
-        color="white",
-        font="DejaVu-Sans",  # Must be installed on GitHub Actions
-        method="caption",
-        size=(clip.w - 100, None),
-        align="center"
-    ).set_position("center").set_duration(clip.duration)
+    # Create Pillow-based text image
+    text_img_path = create_text_image(quote, size=(clip.w, clip.h))
+    txt_clip = TextClip(text_img_path, method="caption").set_duration(clip.duration).set_position("center")
 
     final_clip = CompositeVideoClip([clip, txt_clip])
     final_clip.write_videofile(OUTPUT_FILE, fps=24)
@@ -76,15 +84,10 @@ def main():
     quote = get_quote()
     print("💡 Selected quote:", quote)
 
-    # Use a keyword from the quote to find related video
     keyword = quote.split()[0]  # first word
-    print(f"🎬 Searching video for keyword: {keyword}")
     video_url = get_video_url(keyword)
-    if not video_url:
-        print("❌ Could not find video. Exiting.")
-        return
-
     video_file = download_video(video_url)
+
     create_youtube_short(quote, video_file)
 
 if __name__ == "__main__":
