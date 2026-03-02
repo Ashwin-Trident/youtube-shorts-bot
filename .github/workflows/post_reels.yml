@@ -1,9 +1,9 @@
-# .github/workflows/youtube-shorts-bot.yml
+# .github/workflows/post_reels.yml
 name: Auto YouTube Shorts Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # every day at 9 AM UTC
+    - cron: '0 9 * * *'  # Daily at 9 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the repository
+      # 1. Checkout repo
       - name: Checkout Repo
         uses: actions/checkout@v3
 
@@ -43,7 +43,11 @@ jobs:
       - name: Verify MoviePy
         run: python -c "from moviepy.editor import VideoFileClip, AudioFileClip; print('✅ MoviePy works!')"
 
-      # 6. Run YouTube Shorts Bot
+      # 6. List repo files (optional, for debugging)
+      - name: List files
+        run: ls -R
+
+      # 7. Run YouTube Shorts Bot
       - name: Run YouTube Bot
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
