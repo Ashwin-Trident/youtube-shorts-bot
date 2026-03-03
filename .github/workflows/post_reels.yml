@@ -31,14 +31,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install \
-            moviepy==1.0.3 Pillow requests imageio imageio-ffmpeg \
+            moviepy==1.0.3 Pillow requests gTTS \
+            imageio imageio-ffmpeg \
             google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
       # 5️⃣ Verify environment
       - name: Verify Environment
         run: |
           ffmpeg -version
-          python -c "from moviepy.editor import VideoFileClip; from PIL import Image; print('✅ Packages OK!')"
+          python -c "from moviepy.editor import VideoFileClip; from PIL import Image; from gtts import gTTS; print('✅ Packages OK!')"
 
       # 6️⃣ Run YouTube Shorts Bot
       - name: Run YouTube Shorts Bot
