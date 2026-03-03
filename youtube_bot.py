@@ -34,21 +34,23 @@ def get_quote():
     return random.choice(default_quotes)
 
 # -------------------------------
-# 2️⃣ Create text overlay image
+# 2️⃣ Create text overlay image (fits video)
 # -------------------------------
-def create_text_image(text, size=(1080, 1920), font_size=70):
+def create_text_image(text, size=(1080, 1920), font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    font = ImageFont.truetype(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
-    )
-
-    # Wrap text to fit video
-    wrapped_text = textwrap.fill(text, width=25)
-    bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=20)
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
+    # Start with a large font and shrink until it fits
+    font_size = 100
+    while font_size > 20:
+        font = ImageFont.truetype(font_path, font_size)
+        wrapped_text = textwrap.fill(text, width=25)
+        bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=15)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        if text_width <= size[0] * 0.9 and text_height <= size[1] * 0.8:
+            break
+        font_size -= 2
 
     x = (size[0] - text_width) // 2
     y = (size[1] - text_height) // 2
@@ -59,7 +61,7 @@ def create_text_image(text, size=(1080, 1920), font_size=70):
         font=font,
         fill="white",
         align="center",
-        spacing=20,
+        spacing=15,
     )
 
     path = "/tmp/text_overlay.png"
@@ -137,7 +139,6 @@ def create_youtube_short(quote):
     video_url = get_video_url(keyword)
 
     if not video_url:
-        # fallback sample video
         video_url = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
 
     local_video_path = download_video(video_url)
@@ -176,7 +177,7 @@ def create_youtube_short(quote):
 # -------------------------------
 # 7️⃣ Upload to YouTube
 # -------------------------------
-def upload_to_youtube(video_path, quote):
+def upload_to_youtube(video_path):
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
@@ -202,7 +203,7 @@ def upload_to_youtube(video_path, quote):
 
     body = {
         "snippet": {
-            "title": quote if quote else "Daily Motivation #Shorts",
+            "title": "Daily Quotes (simple and cool heading)",
             "description": description,
             "tags": ["motivation", "shorts", "daily motivation"],
             "categoryId": "22",
@@ -224,7 +225,7 @@ def main():
     print(f"💡 Selected quote: {quote}")
 
     video_path = create_youtube_short(quote)
-    upload_to_youtube(video_path, quote)
+    upload_to_youtube(video_path)
 
 if __name__ == "__main__":
     main()
