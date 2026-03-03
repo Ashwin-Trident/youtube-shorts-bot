@@ -19,7 +19,7 @@ from gtts import gTTS
 # -------------------------------
 def get_quote():
     try:
-        r = requests.get("https://api.quotable.io/random", timeout=20)
+        r = requests.get("http://api.quotable.io/random", timeout=20)
         if r.status_code == 200:
             data = r.json()
             return f"{data['content']} — {data['author']}"
