@@ -127,9 +127,39 @@ def generate_audio(quote):
     return audio_path
 
 # -------------------------------
-# 6️⃣ Create final YouTube Short
+# 6️⃣ Get free royalty-free music from Pixabay
 # -------------------------------
-def create_youtube_short(quote, music_file="background_music.mp3"):
+def get_free_music():
+    PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY")
+    if not PIXABAY_API_KEY:
+        return None
+
+    url = "https://pixabay.com/api/audio/"
+    params = {"key": PIXABAY_API_KEY, "q": "motivational", "per_page": 50}
+
+    try:
+        r = requests.get(url, params=params, timeout=10).json()
+        hits = r.get("hits", [])
+        if hits:
+            music = random.choice(hits)
+            return music["audio"]  # mp3 URL
+    except Exception:
+        print("⚠️ Error fetching music")
+    return None
+
+def download_music(url):
+    response = requests.get(url, stream=True)
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    for chunk in response.iter_content(1024*1024):
+        if chunk:
+            temp_file.write(chunk)
+    temp_file.close()
+    return temp_file.name
+
+# -------------------------------
+# 7️⃣ Create final YouTube Short
+# -------------------------------
+def create_youtube_short(quote):
     keyword = quote.split()[0]
     video_url = get_video_url(keyword)
 
@@ -147,8 +177,10 @@ def create_youtube_short(quote, music_file="background_music.mp3"):
     # TTS audio
     audio_clip = AudioFileClip(generate_audio(quote))
 
-    # Background music (optional)
-    if os.path.exists(music_file):
+    # Random free background music
+    music_url = get_free_music()
+    if music_url:
+        music_file = download_music(music_url)
         music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
         final_audio = CompositeAudioClip([audio_clip, music_clip])
     else:
@@ -170,7 +202,7 @@ def create_youtube_short(quote, music_file="background_music.mp3"):
     return output_path
 
 # -------------------------------
-# 7️⃣ Upload to YouTube
+# 8️⃣ Upload to YouTube
 # -------------------------------
 def upload_to_youtube(video_path, title, description):
     creds = Credentials(
@@ -204,7 +236,7 @@ def upload_to_youtube(video_path, title, description):
     print("Video URL: https://youtube.com/watch?v=" + response["id"])
 
 # -------------------------------
-# 8️⃣ Main
+# 9️⃣ Main
 # -------------------------------
 def main():
     quote = get_quote()
