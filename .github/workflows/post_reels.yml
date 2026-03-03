@@ -2,9 +2,8 @@ name: Daily YouTube Shorts Bot
 
 on:
   schedule:
-    # Runs every day at 9 AM UTC
-    - cron: "0 9 * * *"
-  workflow_dispatch:  # Manual trigger
+    - cron: "0 9 * * *"  # Every day at 9 AM UTC
+  workflow_dispatch:
 
 jobs:
   build-and-run:
@@ -22,7 +21,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install moviepy gtts pillow requests google-auth google-auth-oauthlib google-api-python-client
+          pip install \
+            moviepy==2.0.3 \
+            gtts \
+            pillow \
+            requests \
+            google-auth \
+            google-auth-oauthlib \
+            google-api-python-client \
+            imageio[ffmpeg]
 
       - name: Run YouTube Shorts Bot
         env:
