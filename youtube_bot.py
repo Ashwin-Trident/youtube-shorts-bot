@@ -3,7 +3,7 @@ import random
 import tempfile
 import textwrap
 import requests
-from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip, AudioClip
+from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
 from PIL import Image, ImageDraw, ImageFont
 from gtts import gTTS
 
@@ -38,6 +38,7 @@ def create_text_image(text, size=(1080, 1920), font_size=80):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
+    # You can change the font path if needed
     font = ImageFont.truetype(
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
     )
@@ -118,19 +119,12 @@ def download_video(url):
     return temp_file.name
 
 # -------------------------------
-# 5️⃣ Generate TTS audio with fallback
+# 5️⃣ Generate TTS audio
 # -------------------------------
 def generate_audio(quote):
+    tts = gTTS(text=quote, lang='en')
     audio_path = "/tmp/quote_audio.mp3"
-    try:
-        tts = gTTS(text=quote, lang='en')
-        tts.save(audio_path)
-    except Exception as e:
-        print("⚠️ TTS failed, using default audio:", e)
-        # Create 5-second silent audio fallback
-        def make_silent(t): return 0
-        silent_audio = AudioClip(make_silent, duration=5)
-        silent_audio.write_audiofile(audio_path, fps=44100)
+    tts.save(audio_path)
     return audio_path
 
 # -------------------------------
@@ -182,34 +176,23 @@ def create_youtube_short(quote):
     final_clip = CompositeVideoClip([clip, txt_clip])
 
     # TTS audio
-    audio_clip = None
-    try:
-        audio_clip = AudioFileClip(generate_audio(quote))
-    except Exception as e:
-        print("⚠️ Failed to load TTS audio:", e)
+    audio_clip = AudioFileClip(generate_audio(quote))
+
+    # Local fallback music (your uploaded files in repo root)
+    local_music_files = ["music1.mp3", "music2.mp3", "music3.mp3"]
 
     # Random free background music
-    music_clip = None
     music_url = get_free_music()
     if music_url:
         try:
             music_file = download_music(music_url)
-            music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
-        except Exception as e:
-            print("⚠️ Failed to load music:", e)
-
-    # Combine audio: TTS + music or fallback
-    if audio_clip and music_clip:
-        final_audio = CompositeAudioClip([audio_clip, music_clip])
-    elif audio_clip:
-        final_audio = audio_clip
-    elif music_clip:
-        final_audio = music_clip
+        except Exception:
+            music_file = random.choice(local_music_files)
     else:
-        # fallback default audio if nothing is available
-        def make_silent(t): return 0
-        final_audio = AudioClip(make_silent, duration=clip.duration).volumex(0.1)
+        music_file = random.choice(local_music_files)
 
+    music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
+    final_audio = CompositeAudioClip([audio_clip, music_clip])
     final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
@@ -229,9 +212,8 @@ def create_youtube_short(quote):
 # 8️⃣ Upload to YouTube
 # -------------------------------
 def upload_to_youtube(video_path, title, description):
-    # Ensure a non-empty title
     if not title.strip():
-        title = "Daily Motivation #Shorts"
+        title = "Daily Motivation #Shorts"  # default title
 
     creds = Credentials(
         None,
