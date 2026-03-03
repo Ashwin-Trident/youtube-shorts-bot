@@ -21,15 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install \
-            moviepy==2.2.1 \
-            gtts \
-            pillow \
-            requests \
-            google-auth \
-            google-auth-oauthlib \
-            google-api-python-client \
-            imageio[ffmpeg]
+          pip install moviepy==2.2.1 gtts pillow requests google-auth google-auth-oauthlib google-api-python-client imageio[ffmpeg]
 
       - name: Set environment variables
         run: |
