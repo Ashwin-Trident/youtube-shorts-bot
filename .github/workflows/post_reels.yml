@@ -3,29 +3,26 @@ name: Post Reels
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 7 * * *'  # Runs daily at 07:00 UTC, adjust as needed
+    - cron: '0 7 * * *'  # Runs daily at 07:00 UTC
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Python
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3️⃣ Install dependencies
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade \
-            moviepy==2.3.1 \
+            moviepy==2.2.1 \
             gtts \
             pillow \
             requests \
@@ -34,7 +31,6 @@ jobs:
             google-api-python-client \
             imageio[ffmpeg]
 
-      # 4️⃣ Set environment variables
       - name: Set environment variables
         run: |
           echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> $GITHUB_ENV
@@ -43,7 +39,5 @@ jobs:
           echo "PEXELS_API_KEY=${{ secrets.PEXELS_API_KEY }}" >> $GITHUB_ENV
           echo "PIXABAY_API_KEY=${{ secrets.PIXABAY_API_KEY }}" >> $GITHUB_ENV
 
-      # 5️⃣ Run the YouTube Shorts bot
       - name: Run YouTube Shorts Bot
-        run: |
-          python youtube_bot.py
+        run: python youtube_bot.py
