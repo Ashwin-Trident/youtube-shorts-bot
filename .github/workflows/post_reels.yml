@@ -2,8 +2,8 @@ name: Auto YouTube Shorts Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # Runs daily at 9 AM UTC
-  workflow_dispatch:      # Manual trigger option
+    - cron: '0 9 * * *'   # runs daily at 9 AM UTC
+  workflow_dispatch:      # allows manual trigger
 
 jobs:
   build:
@@ -20,11 +20,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3️⃣ Install system dependencies (FFmpeg + Fonts)
+      # 3️⃣ Install system dependencies (FFmpeg + fonts)
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick fonts-dejavu-core
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
 
       # 4️⃣ Install Python packages
       - name: Install Python Packages
@@ -34,11 +34,11 @@ jobs:
             moviepy==1.0.3 Pillow requests imageio imageio-ffmpeg \
             google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
-      # 5️⃣ Verify setup
+      # 5️⃣ Verify environment
       - name: Verify Environment
         run: |
           ffmpeg -version
-          python -c "from moviepy.editor import VideoFileClip; print('MoviePy OK')"
+          python -c "from moviepy.editor import VideoFileClip; from PIL import Image; print('✅ Packages OK!')"
 
       # 6️⃣ Run YouTube Shorts Bot
       - name: Run YouTube Shorts Bot
