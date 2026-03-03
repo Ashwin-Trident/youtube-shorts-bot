@@ -27,7 +27,7 @@ def get_quote():
     default_quotes = [
         "Do the best you can until you know better. Then when you know better, do better — Maya Angelou",
         "There is nothing noble in being superior to your fellow man; true nobility is being superior to your former self — Ernest Hemingway",
-        "Stay afraid, but do it anyway. What’s important is the action. You don’t have to wait to be confident. Just do it and eventually the confidence will follow — Carrie Fisher",
+        "Stay afraid, but do it anyway. Just do it and eventually confidence will follow — Carrie Fisher",
     ]
     return random.choice(default_quotes)
 
@@ -38,10 +38,9 @@ def create_text_image(text, size=(1080, 1920), font_size=80):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # You can change the font path if needed
-    font = ImageFont.truetype(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
-    )
+    # Change font path if needed
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font = ImageFont.truetype(font_path, font_size)
 
     wrapped_text = textwrap.fill(text, width=25)
     bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=20)
@@ -128,34 +127,41 @@ def generate_audio(quote):
     return audio_path
 
 # -------------------------------
-# 6️⃣ Get free royalty-free music from Pixabay
+# 6️⃣ Get free royalty-free music
 # -------------------------------
 def get_free_music():
+    # First try Pixabay API
     PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY")
-    if not PIXABAY_API_KEY:
-        return None
+    if PIXABAY_API_KEY:
+        try:
+            url = "https://pixabay.com/api/audio/"
+            params = {"key": PIXABAY_API_KEY, "q": "motivational", "per_page": 50}
+            r = requests.get(url, params=params, timeout=10).json()
+            hits = r.get("hits", [])
+            if hits:
+                music = random.choice(hits)
+                return music["audio"]
+        except Exception:
+            print("⚠️ Pixabay music API failed")
 
-    url = "https://pixabay.com/api/audio/"
-    params = {"key": PIXABAY_API_KEY, "q": "motivational", "per_page": 50}
-
-    try:
-        r = requests.get(url, params=params, timeout=10).json()
-        hits = r.get("hits", [])
-        if hits:
-            music = random.choice(hits)
-            return music["audio"]  # mp3 URL
-    except Exception:
-        print("⚠️ Error fetching music")
+    # If API fails, pick from 3 local music files
+    local_music_files = [f for f in os.listdir(".") if f.lower().endswith(".mp3")]
+    if local_music_files:
+        return random.choice(local_music_files)
     return None
 
-def download_music(url):
-    response = requests.get(url, stream=True)
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    for chunk in response.iter_content(1024*1024):
-        if chunk:
-            temp_file.write(chunk)
-    temp_file.close()
-    return temp_file.name
+def download_music(url_or_file):
+    # If it's a URL, download it
+    if url_or_file.startswith("http"):
+        response = requests.get(url_or_file, stream=True)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        for chunk in response.iter_content(1024*1024):
+            if chunk:
+                temp_file.write(chunk)
+        temp_file.close()
+        return temp_file.name
+    # Else it's local file
+    return url_or_file
 
 # -------------------------------
 # 7️⃣ Create final YouTube Short
@@ -178,21 +184,14 @@ def create_youtube_short(quote):
     # TTS audio
     audio_clip = AudioFileClip(generate_audio(quote))
 
-    # Local fallback music (your uploaded files in repo root)
-    local_music_files = ["music1.mp3", "music2.mp3", "music3.mp3"]
-
-    # Random free background music
-    music_url = get_free_music()
-    if music_url:
-        try:
-            music_file = download_music(music_url)
-        except Exception:
-            music_file = random.choice(local_music_files)
+    # Background music
+    music_file = get_free_music()
+    if music_file:
+        music_clip = AudioFileClip(download_music(music_file)).volumex(0.2).set_duration(clip.duration)
+        final_audio = CompositeAudioClip([audio_clip, music_clip])
     else:
-        music_file = random.choice(local_music_files)
+        final_audio = audio_clip
 
-    music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
-    final_audio = CompositeAudioClip([audio_clip, music_clip])
     final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
@@ -212,9 +211,6 @@ def create_youtube_short(quote):
 # 8️⃣ Upload to YouTube
 # -------------------------------
 def upload_to_youtube(video_path, title, description):
-    if not title.strip():
-        title = "Daily Motivation #Shorts"  # default title
-
     creds = Credentials(
         None,
         refresh_token=os.environ.get("REFRESH_TOKEN"),
@@ -228,6 +224,9 @@ def upload_to_youtube(video_path, title, description):
     creds.refresh(request)
 
     youtube = build("youtube", "v3", credentials=creds)
+
+    if not title.strip():
+        title = "Daily Motivation #Shorts"
 
     body = {
         "snippet": {
