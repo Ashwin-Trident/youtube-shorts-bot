@@ -3,13 +3,7 @@ import random
 import tempfile
 import textwrap
 import requests
-from moviepy.editor import (
-    VideoFileClip,
-    ImageClip,
-    CompositeVideoClip,
-    AudioFileClip,
-    CompositeAudioClip,
-)
+from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip, AudioClip
 from PIL import Image, ImageDraw, ImageFont
 from gtts import gTTS
 
@@ -37,36 +31,8 @@ def get_quote():
     ]
     return random.choice(default_quotes)
 
-
 # -------------------------------
-# 2️⃣ Sanitize YouTube title
-# -------------------------------
-def sanitize_title(title):
-    illegal_chars = [
-        "<",
-        ">",
-        '"',
-        "&",
-        "'",
-        "/",
-        "\\",
-        "#",
-        "{",
-        "}",
-        "|",
-        "^",
-        "~",
-        "[",
-        "]",
-        "`",
-    ]
-    for c in illegal_chars:
-        title = title.replace(c, "")
-    return title[:100].strip()
-
-
-# -------------------------------
-# 3️⃣ Create text overlay image
+# 2️⃣ Create text overlay image
 # -------------------------------
 def create_text_image(text, size=(1080, 1920), font_size=80):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
@@ -85,16 +51,20 @@ def create_text_image(text, size=(1080, 1920), font_size=80):
     y = (size[1] - text_height) // 2
 
     draw.multiline_text(
-        (x, y), wrapped_text, font=font, fill="white", align="center", spacing=20
+        (x, y),
+        wrapped_text,
+        font=font,
+        fill="white",
+        align="center",
+        spacing=20,
     )
 
     path = "/tmp/text_overlay.png"
     img.save(path)
     return path
 
-
 # -------------------------------
-# 4️⃣ Fetch Pexels video
+# 3️⃣ Fetch Pexels video
 # -------------------------------
 def get_video_url(keyword="nature"):
     PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
@@ -107,7 +77,10 @@ def get_video_url(keyword="nature"):
 
     try:
         r = requests.get(
-            "https://api.pexels.com/videos/search", headers=headers, params=params, timeout=10
+            "https://api.pexels.com/videos/search",
+            headers=headers,
+            params=params,
+            timeout=10,
         )
         if r.status_code != 200:
             print("❌ Pexels API failed")
@@ -126,9 +99,8 @@ def get_video_url(keyword="nature"):
         print("⚠️ Error fetching Pexels video")
     return None
 
-
 # -------------------------------
-# 5️⃣ Download video locally
+# 4️⃣ Download video locally
 # -------------------------------
 def download_video(url):
     print("⬇️ Downloading video...")
@@ -145,19 +117,24 @@ def download_video(url):
     print("✅ Video downloaded:", temp_file.name)
     return temp_file.name
 
-
 # -------------------------------
-# 6️⃣ Generate TTS audio
+# 5️⃣ Generate TTS audio with fallback
 # -------------------------------
 def generate_audio(quote):
-    tts = gTTS(text=quote, lang="en")
     audio_path = "/tmp/quote_audio.mp3"
-    tts.save(audio_path)
+    try:
+        tts = gTTS(text=quote, lang='en')
+        tts.save(audio_path)
+    except Exception as e:
+        print("⚠️ TTS failed, using default audio:", e)
+        # Create 5-second silent audio fallback
+        def make_silent(t): return 0
+        silent_audio = AudioClip(make_silent, duration=5)
+        silent_audio.write_audiofile(audio_path, fps=44100)
     return audio_path
 
-
 # -------------------------------
-# 7️⃣ Fetch free music from Pixabay
+# 6️⃣ Get free royalty-free music from Pixabay
 # -------------------------------
 def get_free_music():
     PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY")
@@ -172,24 +149,22 @@ def get_free_music():
         hits = r.get("hits", [])
         if hits:
             music = random.choice(hits)
-            return music.get("audio")  # mp3 URL
+            return music["audio"]  # mp3 URL
     except Exception:
         print("⚠️ Error fetching music")
     return None
 
-
 def download_music(url):
     response = requests.get(url, stream=True)
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    for chunk in response.iter_content(1024 * 1024):
+    for chunk in response.iter_content(1024*1024):
         if chunk:
             temp_file.write(chunk)
     temp_file.close()
     return temp_file.name
 
-
 # -------------------------------
-# 8️⃣ Create final YouTube Short
+# 7️⃣ Create final YouTube Short
 # -------------------------------
 def create_youtube_short(quote):
     keyword = quote.split()[0]
@@ -207,34 +182,57 @@ def create_youtube_short(quote):
     final_clip = CompositeVideoClip([clip, txt_clip])
 
     # TTS audio
-    audio_clip = AudioFileClip(generate_audio(quote))
+    audio_clip = None
+    try:
+        audio_clip = AudioFileClip(generate_audio(quote))
+    except Exception as e:
+        print("⚠️ Failed to load TTS audio:", e)
 
-    # Random free music
+    # Random free background music
+    music_clip = None
     music_url = get_free_music()
     if music_url:
         try:
             music_file = download_music(music_url)
             music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
-            final_audio = CompositeAudioClip([audio_clip, music_clip])
-        except Exception:
-            print("⚠️ Failed to add music, using TTS only")
-            final_audio = audio_clip
-    else:
+        except Exception as e:
+            print("⚠️ Failed to load music:", e)
+
+    # Combine audio: TTS + music or fallback
+    if audio_clip and music_clip:
+        final_audio = CompositeAudioClip([audio_clip, music_clip])
+    elif audio_clip:
         final_audio = audio_clip
+    elif music_clip:
+        final_audio = music_clip
+    else:
+        # fallback default audio if nothing is available
+        def make_silent(t): return 0
+        final_audio = AudioClip(make_silent, duration=clip.duration).volumex(0.1)
 
     final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
     print("🎞 Rendering video...")
-    final_clip.write_videofile(output_path, fps=24, codec="libx264", audio_codec="aac")
+    final_clip.write_videofile(
+        output_path,
+        fps=24,
+        codec="libx264",
+        audio_codec="aac",
+        threads=2,
+    )
+
     print(f"✅ Video saved: {output_path}")
     return output_path
 
-
 # -------------------------------
-# 9️⃣ Upload to YouTube
+# 8️⃣ Upload to YouTube
 # -------------------------------
 def upload_to_youtube(video_path, title, description):
+    # Ensure a non-empty title
+    if not title.strip():
+        title = "Daily Motivation #Shorts"
+
     creds = Credentials(
         None,
         refresh_token=os.environ.get("REFRESH_TOKEN"),
@@ -265,9 +263,8 @@ def upload_to_youtube(video_path, title, description):
     print("✅ Uploaded to YouTube!")
     print("Video URL: https://youtube.com/watch?v=" + response["id"])
 
-
 # -------------------------------
-# 10️⃣ Main
+# 9️⃣ Main
 # -------------------------------
 def main():
     quote = get_quote()
@@ -276,10 +273,9 @@ def main():
     video_path = create_youtube_short(quote)
     upload_to_youtube(
         video_path,
-        title=sanitize_title(quote) + " #Shorts",
+        title=quote + " #Shorts",
         description="Daily Motivation 💡\n\n#Shorts #Motivation",
     )
-
 
 if __name__ == "__main__":
     main()
