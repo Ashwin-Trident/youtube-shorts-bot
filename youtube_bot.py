@@ -26,8 +26,8 @@ def get_quote():
         print("⚠️ Failed to get quote, using default.")
     default_quotes = [
         "Do the best you can until you know better. Then when you know better, do better — Maya Angelou",
-        "There is nothing noble in being superior to your fellow man; true nobility is being superior to your former self — Ernest Hemingway",
-        "Stay afraid, but do it anyway. What’s important is the action. You don’t have to wait to be confident. Just do it and eventually the confidence will follow — Carrie Fisher",
+        "There is nothing noble in being superior to your fellow man true nobility is being superior to your former self — Ernest Hemingway",
+        "Stay afraid, but do it anyway. Whats important is the action. You dont have to wait to be confident. Just do it and eventually the confidence will follow — Carrie Fisher",
     ]
     return random.choice(default_quotes)
 
