@@ -2,14 +2,16 @@ import os
 import random
 import tempfile
 import textwrap
-from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
+import requests
+from moviepy.editor import (
+    VideoFileClip,
+    ImageClip,
+    CompositeVideoClip,
+    AudioFileClip,
+    CompositeAudioClip
+)
 from PIL import Image, ImageDraw, ImageFont
 from gtts import gTTS
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-import google.auth.transport.requests
-import requests
 
 # -------------------------------
 # 1️⃣ Get a random quote
@@ -22,6 +24,7 @@ def get_quote():
             return f"{data['content']} — {data['author']}"
     except Exception:
         print("⚠️ Failed to get quote, using default.")
+
     default_quotes = [
         "Do the best you can until you know better. Then when you know better, do better — Maya Angelou",
         "There is nothing noble in being superior to your fellow man; true nobility is being superior to your former self — Ernest Hemingway",
@@ -62,7 +65,7 @@ def create_text_image(text, size=(1080, 1920), font_size=80):
     return path
 
 # -------------------------------
-# 3️⃣ Download video from Pexels
+# 3️⃣ Fetch Pexels video
 # -------------------------------
 def get_video_url(keyword="nature"):
     PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
@@ -74,7 +77,12 @@ def get_video_url(keyword="nature"):
     params = {"query": keyword, "per_page": 10, "orientation": "portrait"}
 
     try:
-        r = requests.get("https://api.pexels.com/videos/search", headers=headers, params=params, timeout=10)
+        r = requests.get(
+            "https://api.pexels.com/videos/search",
+            headers=headers,
+            params=params,
+            timeout=10,
+        )
         if r.status_code != 200:
             print("❌ Pexels API failed")
             return None
@@ -87,10 +95,14 @@ def get_video_url(keyword="nature"):
         for file in video["video_files"]:
             if file["file_type"] == "video/mp4":
                 return file["link"]
+
     except Exception:
         print("⚠️ Error fetching Pexels video")
     return None
 
+# -------------------------------
+# 4️⃣ Download video locally
+# -------------------------------
 def download_video(url):
     print("⬇️ Downloading video...")
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -107,7 +119,7 @@ def download_video(url):
     return temp_file.name
 
 # -------------------------------
-# 4️⃣ Generate TTS audio
+# 5️⃣ Generate TTS audio
 # -------------------------------
 def generate_audio(quote):
     tts = gTTS(text=quote, lang='en')
@@ -116,23 +128,14 @@ def generate_audio(quote):
     return audio_path
 
 # -------------------------------
-# 5️⃣ Select uploaded music randomly
-# -------------------------------
-def pick_uploaded_music():
-    # Replace with your actual uploaded music filenames
-    music_files = ["music1.mp3", "music2.mp3", "music3.mp3"]
-    selected = random.choice(music_files)
-    print(f"🎵 Using uploaded music: {selected}")
-    return selected
-
-# -------------------------------
-# 6️⃣ Create YouTube Short
+# 6️⃣ Create final YouTube Short
 # -------------------------------
 def create_youtube_short(quote):
     keyword = quote.split()[0]
     video_url = get_video_url(keyword)
 
     if not video_url:
+        # fallback sample video
         video_url = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
 
     local_video_path = download_video(video_url)
@@ -143,15 +146,16 @@ def create_youtube_short(quote):
     txt_clip = ImageClip(text_img_path).set_duration(clip.duration)
     final_clip = CompositeVideoClip([clip, txt_clip])
 
-    # TTS audio
-    tts_audio = AudioFileClip(generate_audio(quote))
+    # TTS audio (louder)
+    audio_clip = AudioFileClip(generate_audio(quote)).volumex(1.5)
 
-    # Uploaded background music
-    music_file = pick_uploaded_music()
+    # Background music from uploaded files (quieter)
+    music_files = ["music1.mp3", "music2.mp3", "music3.mp3"]
+    music_file = random.choice(music_files)
     music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
 
-    # Combine TTS + music
-    final_audio = CompositeAudioClip([tts_audio, music_clip])
+    # Combine TTS and music
+    final_audio = CompositeAudioClip([music_clip, audio_clip])
     final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
@@ -163,6 +167,7 @@ def create_youtube_short(quote):
         audio_codec="aac",
         threads=2,
     )
+
     print(f"✅ Video saved: {output_path}")
     return output_path
 
@@ -170,6 +175,11 @@ def create_youtube_short(quote):
 # 7️⃣ Upload to YouTube
 # -------------------------------
 def upload_to_youtube(video_path, title, description):
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaFileUpload
+    import google.auth.transport.requests
+
     creds = Credentials(
         None,
         refresh_token=os.environ.get("REFRESH_TOKEN"),
@@ -183,9 +193,10 @@ def upload_to_youtube(video_path, title, description):
     creds.refresh(request)
 
     youtube = build("youtube", "v3", credentials=creds)
+
     body = {
         "snippet": {
-            "title": title,
+            "title": title if title else "Daily Motivation #Shorts",
             "description": description,
             "tags": ["motivation", "shorts"],
             "categoryId": "22",
@@ -209,7 +220,7 @@ def main():
     video_path = create_youtube_short(quote)
     upload_to_youtube(
         video_path,
-        title=quote[:90] + " #Shorts",  # limit title length
+        title=quote + " #Shorts",
         description="Daily Motivation 💡\n\n#Shorts #Motivation",
     )
 
