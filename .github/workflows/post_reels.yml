@@ -1,12 +1,12 @@
 name: YouTube Shorts Bot
 
 on:
-  workflow_dispatch:   # Allows manual trigger
+  workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *'  # Runs every day at 8 AM UTC
+    - cron: '0 8 * * *'  # Run daily at 8 AM UTC
 
 jobs:
-  build-and-run:
+  run-bot:
     runs-on: ubuntu-latest
 
     env:
@@ -17,10 +17,10 @@ jobs:
       PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup Python 3.11
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.11
@@ -30,8 +30,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install requests gTTS google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client pillow moviepy==2.2.1
+          python -m pip install requests gTTS google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client pillow
+          python -m pip install moviepy==2.2.1
 
       - name: Run YouTube Bot
         run: python youtube_bot.py
