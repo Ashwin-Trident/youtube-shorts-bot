@@ -7,10 +7,10 @@ from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
 from PIL import Image, ImageDraw, ImageFont
 
 # YouTube API
-import google.auth.transport.requests
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+import google.auth.transport.requests
 
 
 # 1️⃣ Get a Quote
@@ -30,12 +30,12 @@ def get_quote():
     return random.choice(default_quotes)
 
 
-# 2️⃣ Create text image overlay
+# 2️⃣ Create text overlay
 def create_text_image(text, size=(1080, 1920), font_size=80):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # System font available on GitHub runners
+    # Use system font available in GitHub runners
     font = ImageFont.truetype(
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
     )
@@ -62,7 +62,7 @@ def create_text_image(text, size=(1080, 1920), font_size=80):
     return path
 
 
-# 3️⃣ Get Pexels video URL (MP4 only)
+# 3️⃣ Get Pexels video
 def get_video_url(keyword="nature"):
     PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
     if not PEXELS_API_KEY:
