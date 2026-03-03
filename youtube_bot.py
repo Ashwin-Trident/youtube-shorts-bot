@@ -2,6 +2,7 @@ import os
 import random
 import tempfile
 import textwrap
+import datetime
 import requests
 from moviepy.editor import (
     VideoFileClip,
@@ -12,6 +13,12 @@ from moviepy.editor import (
 )
 from PIL import Image, ImageDraw, ImageFont
 from gtts import gTTS
+
+# YouTube API
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+import google.auth.transport.requests
 
 # -------------------------------
 # 1️⃣ Get a random quote
@@ -24,7 +31,6 @@ def get_quote():
             return f"{data['content']} — {data['author']}"
     except Exception:
         print("⚠️ Failed to get quote, using default.")
-
     default_quotes = [
         "Do the best you can until you know better. Then when you know better, do better — Maya Angelou",
         "There is nothing noble in being superior to your fellow man; true nobility is being superior to your former self — Ernest Hemingway",
@@ -35,19 +41,23 @@ def get_quote():
 # -------------------------------
 # 2️⃣ Create text overlay image
 # -------------------------------
-def create_text_image(text, size=(1080, 1920), font_size=80):
+def create_text_image(text, size=(1080, 1920), max_font_size=80):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    font = ImageFont.truetype(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
-    )
+    # Dynamically adjust font size to fit text
+    font_size = max_font_size
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    while font_size > 30:
+        font = ImageFont.truetype(font_path, font_size)
+        wrapped_text = textwrap.fill(text, width=25)
+        bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=20)
+        if bbox[2] - bbox[0] <= size[0] * 0.9:
+            break
+        font_size -= 2
 
-    wrapped_text = textwrap.fill(text, width=25)
-    bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=20)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-
     x = (size[0] - text_width) // 2
     y = (size[1] - text_height) // 2
 
@@ -128,14 +138,22 @@ def generate_audio(quote):
     return audio_path
 
 # -------------------------------
-# 6️⃣ Create final YouTube Short
+# 6️⃣ Pick local fallback music
+# -------------------------------
+def pick_local_music():
+    music_files = [f for f in os.listdir() if f.lower().endswith(".mp3")]
+    if not music_files:
+        return None
+    return random.choice(music_files)
+
+# -------------------------------
+# 7️⃣ Create final YouTube Short
 # -------------------------------
 def create_youtube_short(quote):
     keyword = quote.split()[0]
     video_url = get_video_url(keyword)
 
     if not video_url:
-        # fallback sample video
         video_url = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
 
     local_video_path = download_video(video_url)
@@ -146,16 +164,17 @@ def create_youtube_short(quote):
     txt_clip = ImageClip(text_img_path).set_duration(clip.duration)
     final_clip = CompositeVideoClip([clip, txt_clip])
 
-    # TTS audio (louder)
-    audio_clip = AudioFileClip(generate_audio(quote)).volumex(1.5)
+    # TTS audio
+    audio_clip = AudioFileClip(generate_audio(quote)).volumex(1.0)
 
-    # Background music from uploaded files (quieter)
-    music_files = ["music1.mp3", "music2.mp3", "music3.mp3"]
-    music_file = random.choice(music_files)
-    music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
+    # Background music (pick local fallback)
+    music_file = pick_local_music()
+    if music_file:
+        music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
+        final_audio = CompositeAudioClip([audio_clip, music_clip])
+    else:
+        final_audio = audio_clip
 
-    # Combine TTS and music
-    final_audio = CompositeAudioClip([music_clip, audio_clip])
     final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
@@ -172,14 +191,9 @@ def create_youtube_short(quote):
     return output_path
 
 # -------------------------------
-# 7️⃣ Upload to YouTube
+# 8️⃣ Upload to YouTube
 # -------------------------------
-def upload_to_youtube(video_path, title, description):
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaFileUpload
-    import google.auth.transport.requests
-
+def upload_to_youtube(video_path, quote):
     creds = Credentials(
         None,
         refresh_token=os.environ.get("REFRESH_TOKEN"),
@@ -194,11 +208,14 @@ def upload_to_youtube(video_path, title, description):
 
     youtube = build("youtube", "v3", credentials=creds)
 
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    description = f"{quote}\n\n#Shorts #Motivation #daily_motivation_quotes - {today}"
+
     body = {
         "snippet": {
-            "title": title if title else "Daily Motivation #Shorts",
+            "title": "Daily Motivation #Shorts",
             "description": description,
-            "tags": ["motivation", "shorts"],
+            "tags": ["motivation", "shorts", "daily motivation"],
             "categoryId": "22",
         },
         "status": {"privacyStatus": "public"},
@@ -211,18 +228,14 @@ def upload_to_youtube(video_path, title, description):
     print("Video URL: https://youtube.com/watch?v=" + response["id"])
 
 # -------------------------------
-# 8️⃣ Main
+# 9️⃣ Main
 # -------------------------------
 def main():
     quote = get_quote()
     print(f"💡 Selected quote: {quote}")
 
     video_path = create_youtube_short(quote)
-    upload_to_youtube(
-        video_path,
-        title=quote + " #Shorts",
-        description="Daily Motivation 💡\n\n#Shorts #Motivation",
-    )
+    upload_to_youtube(video_path, quote)
 
 if __name__ == "__main__":
     main()
