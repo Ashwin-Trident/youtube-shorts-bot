@@ -3,8 +3,9 @@ import random
 import tempfile
 import textwrap
 import requests
-from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
 from PIL import Image, ImageDraw, ImageFont
+from gtts import gTTS
 
 # YouTube API
 from google.oauth2.credentials import Credentials
@@ -12,8 +13,9 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import google.auth.transport.requests
 
-
-# 1️⃣ Get a Quote
+# -------------------------------
+# 1️⃣ Get a random quote
+# -------------------------------
 def get_quote():
     try:
         r = requests.get("https://api.quotable.io/random", timeout=10)
@@ -29,13 +31,13 @@ def get_quote():
     ]
     return random.choice(default_quotes)
 
-
-# 2️⃣ Create text overlay
+# -------------------------------
+# 2️⃣ Create text overlay image
+# -------------------------------
 def create_text_image(text, size=(1080, 1920), font_size=80):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Use system font available in GitHub runners
     font = ImageFont.truetype(
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
     )
@@ -61,8 +63,9 @@ def create_text_image(text, size=(1080, 1920), font_size=80):
     img.save(path)
     return path
 
-
-# 3️⃣ Get Pexels video
+# -------------------------------
+# 3️⃣ Fetch Pexels video
+# -------------------------------
 def get_video_url(keyword="nature"):
     PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
     if not PEXELS_API_KEY:
@@ -96,8 +99,9 @@ def get_video_url(keyword="nature"):
         print("⚠️ Error fetching Pexels video")
     return None
 
-
+# -------------------------------
 # 4️⃣ Download video locally
+# -------------------------------
 def download_video(url):
     print("⬇️ Downloading video...")
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -113,27 +117,44 @@ def download_video(url):
     print("✅ Video downloaded:", temp_file.name)
     return temp_file.name
 
+# -------------------------------
+# 5️⃣ Generate TTS audio
+# -------------------------------
+def generate_audio(quote):
+    tts = gTTS(text=quote, lang='en')
+    audio_path = "/tmp/quote_audio.mp3"
+    tts.save(audio_path)
+    return audio_path
 
-# 5️⃣ Create YouTube Short video
-def create_youtube_short(quote):
+# -------------------------------
+# 6️⃣ Create final YouTube Short
+# -------------------------------
+def create_youtube_short(quote, music_file="background_music.mp3"):
     keyword = quote.split()[0]
     video_url = get_video_url(keyword)
 
     if not video_url:
-        print("⚠️ No video found, using fallback.")
         video_url = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
 
     local_video_path = download_video(video_url)
+    clip = VideoFileClip(local_video_path).subclip(0, 15)
 
-    print("🎬 Loading video...")
-    clip = VideoFileClip(local_video_path)
-    duration = min(15, clip.duration)
-    clip = clip.subclip(0, duration)
-
+    # Text overlay
     text_img_path = create_text_image(quote, size=(clip.w, clip.h))
     txt_clip = ImageClip(text_img_path).set_duration(clip.duration)
-
     final_clip = CompositeVideoClip([clip, txt_clip])
+
+    # TTS audio
+    audio_clip = AudioFileClip(generate_audio(quote))
+
+    # Background music (optional)
+    if os.path.exists(music_file):
+        music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
+        final_audio = CompositeAudioClip([audio_clip, music_clip])
+    else:
+        final_audio = audio_clip
+
+    final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
     print("🎞 Rendering video...")
@@ -141,15 +162,16 @@ def create_youtube_short(quote):
         output_path,
         fps=24,
         codec="libx264",
-        audio=False,
+        audio_codec="aac",
         threads=2,
     )
 
     print(f"✅ Video saved: {output_path}")
     return output_path
 
-
-# 6️⃣ Upload to YouTube
+# -------------------------------
+# 7️⃣ Upload to YouTube
+# -------------------------------
 def upload_to_youtube(video_path, title, description):
     creds = Credentials(
         None,
@@ -181,20 +203,19 @@ def upload_to_youtube(video_path, title, description):
     print("✅ Uploaded to YouTube!")
     print("Video URL: https://youtube.com/watch?v=" + response["id"])
 
-
-# 7️⃣ Main
+# -------------------------------
+# 8️⃣ Main
+# -------------------------------
 def main():
     quote = get_quote()
     print(f"💡 Selected quote: {quote}")
 
     video_path = create_youtube_short(quote)
-
     upload_to_youtube(
         video_path,
         title=quote + " #Shorts",
         description="Daily Motivation 💡\n\n#Shorts #Motivation",
     )
-
 
 if __name__ == "__main__":
     main()
