@@ -27,9 +27,13 @@ def get_quote():
         print("⚠️ Failed to get quote, using default.")
 
     default_quotes = [
-        " Angaad pova engadu pova, patoolla nnu paranja pattoollaa.. — Ayasha vedimara gunda",
-        " Angaad pova engadu pova, patoolla nnu paranja pattoollaa.. — Ayasha vedimara gunda",
-        " Angaad pova engadu pova, patoolla nnu paranja pattoollaa.. — Ayasha vedimara gunda",
+        " It isn’t normal to know what we want. It is a rare and difficult psychological achievement. — Abraham Maslow",
+        "I take my fundamental cue from John Coltrane that says there must be a priority of integrity, honesty, decency, and mastery of craft. — Cornel West",
+        "The two most important days in your life are the day you are born... and the day you find out why. — Mark Twain",
+        "Death is not the greatest loss in life. The greatest loss is what dies inside us while we live. — Norman Cousins",
+        "Liberty means responsibility. That is why most people dread it.” — George Bernard Shaw",
+        "If you want to do this, if you want to play big, if you want to really impact lives, you’ve got to face yourself. You’ve got to be courageous and willing to go all in and address everything about you that is uncomfortable. —  Harry Lopez",
+        "Life’s most persistent and urgent question is, ‘What are you doing for others?’ — Martin Luther King, Jr",
     ]
     return random.choice(default_quotes)
 
