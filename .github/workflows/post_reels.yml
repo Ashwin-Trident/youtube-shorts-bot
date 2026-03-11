@@ -2,7 +2,7 @@ name: YouTube Shorts Bot CI
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Runs daily at 9:00 AM UTC
+    - cron: '0 5 * * *'  # Runs daily at 5:00 UTC = 9:00 AM UAE time
   workflow_dispatch:      # Allows manual trigger
 
 jobs:
@@ -18,13 +18,16 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Install ffmpeg (required for moviepy)
+      - name: Install ffmpeg (required for moviepy and pydub)
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Upgrade pip and install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install requests gtts google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 pillow moviepy==1.0.3
+          python -m pip install requests TTS pydub google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2 pillow moviepy==1.0.3
+
+      - name: Print current time
+        run: date -u  # Optional: confirm workflow ran
 
       - name: Run YouTube Bot
         env:
