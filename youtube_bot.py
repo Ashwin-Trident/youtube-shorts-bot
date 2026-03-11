@@ -12,7 +12,7 @@ from moviepy.editor import (
     CompositeAudioClip
 )
 from PIL import Image, ImageDraw, ImageFont
-from TTS.api import TTS  # <-- Replacing gTTS with Coqui TTS
+from TTS.api import TTS
 from pydub import AudioSegment
 
 # -------------------------------
@@ -39,7 +39,7 @@ def get_quote():
     return random.choice(default_quotes)
 
 # -------------------------------
-# 2️⃣ Create text overlay image (fits video)
+# 2️⃣ Create text overlay image
 # -------------------------------
 def create_text_image(text, size=(1080, 1920), font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
@@ -122,18 +122,32 @@ def download_video(url):
 # 5️⃣ Generate neural TTS audio
 # -------------------------------
 def generate_audio(quote):
+    # Replace em dash with hyphen for TTS
+    quote = quote.replace("—", "-")
     tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False, gpu=False)
     audio_path = "/tmp/quote_audio.wav"
     tts.tts_to_file(text=quote, file_path=audio_path)
     return audio_path
 
 # -------------------------------
-# 6️⃣ Combine with ASMR background
+# 6️⃣ Combine with ASMR background and pad audio
 # -------------------------------
 def combine_with_background(tts_path, background_file, duration):
     voice = AudioSegment.from_file(tts_path)
     background = AudioSegment.from_file(background_file).apply_gain(-25)
+
+    # Loop background if shorter than voice
+    if len(background) < len(voice):
+        background = background * ((len(voice) // len(background)) + 1)
+
     final_audio = voice.overlay(background)
+
+    # Pad with silence if shorter than video duration
+    total_ms = int(duration * 1000)
+    if len(final_audio) < total_ms:
+        silence = AudioSegment.silent(duration=total_ms - len(final_audio))
+        final_audio += silence
+
     out_path = "/tmp/final_audio.wav"
     final_audio.export(out_path, format="wav")
     return AudioFileClip(out_path).set_duration(duration)
