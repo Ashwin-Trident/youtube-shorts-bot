@@ -12,7 +12,8 @@ from moviepy.editor import (
     CompositeAudioClip
 )
 from PIL import Image, ImageDraw, ImageFont
-from gtts import gTTS
+from TTS.api import TTS  # <-- Replacing gTTS with Coqui TTS
+from pydub import AudioSegment
 
 # -------------------------------
 # 1️⃣ Get a random quote
@@ -27,12 +28,12 @@ def get_quote():
         print("⚠️ Failed to get quote, using default.")
 
     default_quotes = [
-        " It isn’t normal to know what we want. It is a rare and difficult psychological achievement. — Abraham Maslow",
+        "It isn’t normal to know what we want. It is a rare and difficult psychological achievement. — Abraham Maslow",
         "I take my fundamental cue from John Coltrane that says there must be a priority of integrity, honesty, decency, and mastery of craft. — Cornel West",
         "The two most important days in your life are the day you are born... and the day you find out why. — Mark Twain",
         "Death is not the greatest loss in life. The greatest loss is what dies inside us while we live. — Norman Cousins",
-        "Liberty means responsibility. That is why most people dread it.” — George Bernard Shaw",
-        "If you want to do this, if you want to play big, if you want to really impact lives, you’ve got to face yourself. You’ve got to be courageous and willing to go all in and address everything about you that is uncomfortable. —  Harry Lopez",
+        "Liberty means responsibility. That is why most people dread it. — George Bernard Shaw",
+        "If you want to do this, if you want to play big, if you want to really impact lives, you’ve got to face yourself. — Harry Lopez",
         "Life’s most persistent and urgent question is, ‘What are you doing for others?’ — Martin Luther King, Jr",
     ]
     return random.choice(default_quotes)
@@ -44,7 +45,6 @@ def create_text_image(text, size=(1080, 1920), font_path="/usr/share/fonts/truet
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Start with a large font and shrink until it fits
     font_size = 100
     while font_size > 20:
         font = ImageFont.truetype(font_path, font_size)
@@ -85,25 +85,17 @@ def get_video_url(keyword="nature"):
     params = {"query": keyword, "per_page": 10, "orientation": "portrait"}
 
     try:
-        r = requests.get(
-            "https://api.pexels.com/videos/search",
-            headers=headers,
-            params=params,
-            timeout=10,
-        )
+        r = requests.get("https://api.pexels.com/videos/search", headers=headers, params=params, timeout=10)
         if r.status_code != 200:
             print("❌ Pexels API failed")
             return None
-
         data = r.json()
         if not data.get("videos"):
             return None
-
         video = random.choice(data["videos"])
         for file in video["video_files"]:
             if file["file_type"] == "video/mp4":
                 return file["link"]
-
     except Exception:
         print("⚠️ Error fetching Pexels video")
     return None
@@ -127,21 +119,31 @@ def download_video(url):
     return temp_file.name
 
 # -------------------------------
-# 5️⃣ Generate TTS audio
+# 5️⃣ Generate neural TTS audio
 # -------------------------------
 def generate_audio(quote):
-    tts = gTTS(text=quote, lang='en')
-    audio_path = "/tmp/quote_audio.mp3"
-    tts.save(audio_path)
+    tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False, gpu=False)
+    audio_path = "/tmp/quote_audio.wav"
+    tts.tts_to_file(text=quote, file_path=audio_path)
     return audio_path
 
 # -------------------------------
-# 6️⃣ Create final YouTube Short
+# 6️⃣ Combine with ASMR background
+# -------------------------------
+def combine_with_background(tts_path, background_file, duration):
+    voice = AudioSegment.from_file(tts_path)
+    background = AudioSegment.from_file(background_file).apply_gain(-25)
+    final_audio = voice.overlay(background)
+    out_path = "/tmp/final_audio.wav"
+    final_audio.export(out_path, format="wav")
+    return AudioFileClip(out_path).set_duration(duration)
+
+# -------------------------------
+# 7️⃣ Create final YouTube Short
 # -------------------------------
 def create_youtube_short(quote):
     keyword = quote.split()[0]
     video_url = get_video_url(keyword)
-
     if not video_url:
         video_url = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
 
@@ -153,16 +155,14 @@ def create_youtube_short(quote):
     txt_clip = ImageClip(text_img_path).set_duration(clip.duration)
     final_clip = CompositeVideoClip([clip, txt_clip])
 
-    # TTS audio (louder)
-    audio_clip = AudioFileClip(generate_audio(quote)).volumex(1.5)
+    # Neural TTS audio
+    tts_audio_path = generate_audio(quote)
 
-    # Background music from uploaded files (quieter)
+    # Optional ASMR background
     music_files = ["music1.mp3", "music2.mp3", "music3.mp3"]
     music_file = random.choice(music_files)
-    music_clip = AudioFileClip(music_file).volumex(0.2).set_duration(clip.duration)
+    final_audio = combine_with_background(tts_audio_path, music_file, clip.duration)
 
-    # Combine TTS and music
-    final_audio = CompositeAudioClip([music_clip, audio_clip])
     final_clip = final_clip.set_audio(final_audio)
 
     output_path = "/tmp/youtube_short.mp4"
@@ -179,7 +179,7 @@ def create_youtube_short(quote):
     return output_path
 
 # -------------------------------
-# 7️⃣ Upload to YouTube
+# 8️⃣ Upload to YouTube
 # -------------------------------
 def upload_to_youtube(video_path):
     from google.oauth2.credentials import Credentials
@@ -201,13 +201,12 @@ def upload_to_youtube(video_path):
 
     youtube = build("youtube", "v3", credentials=creds)
 
-    # Caption with hashtags and current date
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     description = f"#Shorts #Motivation #daily_motivation_quotes - {today}"
 
     body = {
         "snippet": {
-            "title": "Daily Quotes" + description,
+            "title": "Daily Quotes " + today,
             "description": description,
             "tags": ["motivation", "shorts", "daily motivation"],
             "categoryId": "22",
@@ -222,7 +221,7 @@ def upload_to_youtube(video_path):
     print("Video URL: https://youtube.com/watch?v=" + response["id"])
 
 # -------------------------------
-# 8️⃣ Main
+# 9️⃣ Main
 # -------------------------------
 def main():
     quote = get_quote()
