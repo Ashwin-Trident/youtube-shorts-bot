@@ -220,7 +220,7 @@ def upload_to_youtube(video_path):
 
     body = {
         "snippet": {
-            "title": "Daily Quotes " + today,
+            "title": "The Secret to Success | Daily Motivation " + today,
             "description": description,
             "tags": ["motivation", "shorts", "daily motivation"],
             "categoryId": "22",
