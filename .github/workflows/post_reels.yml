@@ -2,7 +2,7 @@ name: YouTube Shorts Bot CI
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Runs daily at 5:00 UTC = 9:00 AM UAE time
+    - cron: '*/5 * * * *'
   workflow_dispatch:      # Allows manual trigger
 
 jobs:
