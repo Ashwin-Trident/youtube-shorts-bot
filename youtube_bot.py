@@ -17,6 +17,10 @@ from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
 from pydub import AudioSegment
 
+# ── Pillow 10+ removed ANTIALIAS; patch it so MoviePy 1.0.3 doesn't crash ──
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
 
 # ─────────────────────────────────────────────
 # 0️⃣  System dependency check (espeak-ng)
@@ -252,15 +256,23 @@ def build_15s_clip(keyword, target=15.0):
     clips     = []
     total     = 0.0
     remaining = target
+    target_size = None   # set from first successful clip
 
     for url in urls:
         if remaining <= 0:
             break
         try:
-            path     = download_video(url)
-            raw      = VideoFileClip(path)
-            seg_dur  = min(raw.duration, remaining, 6.0)   # each segment ≤ 6 s
-            seg      = raw.subclip(0, seg_dur)
+            path    = download_video(url)
+            raw     = VideoFileClip(path)
+            seg_dur = min(raw.duration, remaining, 6.0)   # each segment ≤ 6 s
+            seg     = raw.subclip(0, seg_dur)
+
+            # Lock all clips to the first clip's dimensions
+            if target_size is None:
+                target_size = (raw.w, raw.h)
+            elif (seg.w, seg.h) != target_size:
+                seg = seg.resize(target_size)   # ANTIALIAS patch above makes this safe
+
             clips.append(seg)
             total    += seg_dur
             remaining = target - total
@@ -277,10 +289,7 @@ def build_15s_clip(keyword, target=15.0):
     if combined.duration > target:
         combined = combined.subclip(0, target)
 
-    # Resize all to first clip's dimensions (in case sizes differ)
-    W, H = clips[0].w, clips[0].h
-    combined = combined.resize((W, H))
-
+    W, H = target_size
     print(f"✅ Combined clip: {combined.duration:.2f}s  @ {W}×{H}")
     return combined
 
