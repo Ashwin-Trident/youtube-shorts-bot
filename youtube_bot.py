@@ -381,7 +381,7 @@ def _load_tts_engine():
 
 # Speaking rate: 0.75 = 75% speed (comfortably slow, easy to follow)
 # Range: 0.5 (very slow) → 1.0 (normal) — adjust to taste
-SPEECH_RATE = 0.78
+SPEECH_RATE = 0.88
 
 
 def _slow_down(input_path, output_path, rate=SPEECH_RATE):
@@ -439,7 +439,7 @@ def generate_audio_segments(segments, author):
         durations : matching list of floats (seconds)
         PAUSE_MS  : inter-segment silence in ms
     """
-    PAUSE_MS = 700   # 0.7 s natural breath between clauses
+    PAUSE_MS = 400   # 0.4 s natural breath between clauses
 
     tts, speaker = _load_tts_engine()
     paths, durs  = [], []
