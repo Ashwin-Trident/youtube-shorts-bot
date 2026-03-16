@@ -337,9 +337,7 @@ def upload_to_youtube(video_path):
         client_secret=os.environ.get("CLIENT_SECRET"),
         scopes=["https://www.googleapis.com/auth/youtube.upload"],
     )
-    google.auth.transport.requests.Request().execute and creds.refresh(
-        google.auth.transport.requests.Request()
-    )
+   creds.refresh(google.auth.transport.requests.Request())
 
     youtube = build("youtube", "v3", credentials=creds)
     today = datetime.datetime.now().strftime("%Y-%m-%d")
