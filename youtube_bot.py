@@ -379,25 +379,67 @@ def _load_tts_engine():
     raise RuntimeError("❌ All TTS options exhausted.")
 
 
+# Speaking rate: 0.75 = 75% speed (comfortably slow, easy to follow)
+# Range: 0.5 (very slow) → 1.0 (normal) — adjust to taste
+SPEECH_RATE = 0.78
+
+
+def _slow_down(input_path, output_path, rate=SPEECH_RATE):
+    """
+    Time-stretch a WAV to `rate` speed using ffmpeg atempo filter.
+    atempo range is 0.5–2.0; for rates below 0.5 we chain two filters.
+    Returns duration of the slowed file in seconds.
+    """
+    # Build atempo chain: e.g. 0.75 → "atempo=0.75"
+    # If rate < 0.5 we need two passes: rate=0.5*0.5=0.25 → "atempo=0.5,atempo=0.5"
+    if rate >= 0.5:
+        atempo = f"atempo={rate}"
+    else:
+        # Two-stage: sqrt(rate) each time
+        import math
+        stage = math.sqrt(rate)
+        atempo = f"atempo={stage:.4f},atempo={stage:.4f}"
+
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-filter:a", atempo,
+        "-ar", "22050",    # keep sample rate consistent with TTS output
+        output_path
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"   ⚠️  ffmpeg atempo failed, using original: {result.stderr[-200:]}")
+        import shutil
+        shutil.copy(input_path, output_path)
+
+    return len(AudioSegment.from_file(output_path)) / 1000.0
+
+
 def _synth(tts, speaker, text, path):
-    """Synthesise one piece of text and return its duration in seconds."""
-    clean = text.replace("—", "-").replace("…", "...")
-    kw    = {"text": clean, "file_path": path}
+    """
+    Synthesise text → WAV, then time-stretch to SPEECH_RATE.
+    Returns duration of the final (slowed) file in seconds.
+    """
+    clean    = text.replace("—", "-").replace("…", "...")
+    raw_path = path.replace(".wav", "_raw.wav")
+    kw = {"text": clean, "file_path": raw_path}
     if speaker:
         kw["speaker"] = speaker
     tts.tts_to_file(**kw)
-    return len(AudioSegment.from_file(path)) / 1000.0
+
+    # Slow it down
+    return _slow_down(raw_path, path, rate=SPEECH_RATE)
 
 
 def generate_audio_segments(segments, author):
     """
-    Generate one WAV per segment + one for the author.
+    Generate one WAV per segment + one for the author, all time-stretched.
     Returns:
-        tts_paths  : list of wav paths  [seg0.wav, seg1.wav, ..., author.wav]
-        durations  : list of floats (seconds) matching tts_paths
-        PAUSE_MS   : inter-segment silence in ms
+        tts_paths : [seg0.wav, seg1.wav, ..., author.wav]
+        durations : matching list of floats (seconds)
+        PAUSE_MS  : inter-segment silence in ms
     """
-    PAUSE_MS = 300   # 0.3 s breath between segments
+    PAUSE_MS = 700   # 0.7 s natural breath between clauses
 
     tts, speaker = _load_tts_engine()
     paths, durs  = [], []
