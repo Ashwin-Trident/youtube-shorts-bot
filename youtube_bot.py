@@ -415,20 +415,66 @@ def _slow_down(input_path, output_path, rate=SPEECH_RATE):
     return len(AudioSegment.from_file(output_path)) / 1000.0
 
 
+def _clean_text(text):
+    """
+    Strip everything the TTS phonemizer can mis-read as extra speech.
+    - Remove all characters except letters, digits, spaces, and basic punct
+    - Collapse multiple spaces / punctuation
+    - Ensure the sentence ends with a single period (gives a clean stop)
+    """
+    import re
+    t = text.replace("—", " ").replace("–", " ").replace("…", " ")
+    t = t.replace(""", "").replace(""", "").replace("'", "'")
+    # Keep only safe characters
+    t = re.sub(r"[^a-zA-Z0-9 ',\.!\?]", " ", t)
+    # Collapse runs of spaces / punctuation
+    t = re.sub(r"[',\.!\?]{2,}", ".", t)
+    t = re.sub(r" {2,}", " ", t).strip()
+    # Remove any trailing punctuation then add a clean full stop
+    t = re.sub(r"[',\.!\? ]+$", "", t) + "."
+    return t
+
+
+def _trim_silence(input_path, output_path, silence_thresh=-45, min_silence_ms=200):
+    """
+    Use ffmpeg silenceremove to cut trailing noise/garbage after speech ends.
+    Keeps leading audio intact; only trims the tail.
+    """
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-af",
+        # stop_periods=-1 = trim from the END; stop_threshold in dB
+        f"silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold={silence_thresh}dB",
+        output_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        import shutil
+        shutil.copy(input_path, output_path)
+
+
 def _synth(tts, speaker, text, path):
     """
-    Synthesise text → WAV, then time-stretch to SPEECH_RATE.
-    Returns duration of the final (slowed) file in seconds.
+    1. Deep-clean text to stop TTS hallucinating on special chars
+    2. Synthesise → raw WAV
+    3. Trim trailing silence / noise
+    4. Time-stretch to SPEECH_RATE
+    Returns duration of the final file in seconds.
     """
-    clean    = text.replace("—", "-").replace("…", "...")
+    clean    = _clean_text(text)
     raw_path = path.replace(".wav", "_raw.wav")
+    trim_path = path.replace(".wav", "_trim.wav")
+
     kw = {"text": clean, "file_path": raw_path}
     if speaker:
         kw["speaker"] = speaker
     tts.tts_to_file(**kw)
 
+    # Trim trailing noise before slowing down
+    _trim_silence(raw_path, trim_path)
+
     # Slow it down
-    return _slow_down(raw_path, path, rate=SPEECH_RATE)
+    return _slow_down(trim_path, path, rate=SPEECH_RATE)
 
 
 def generate_audio_segments(segments, author):
