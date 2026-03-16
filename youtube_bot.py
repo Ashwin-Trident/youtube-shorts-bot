@@ -11,6 +11,7 @@ from moviepy.editor import (
     ImageClip,
     CompositeVideoClip,
     AudioFileClip,
+    concatenate_videoclips,
 )
 from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
@@ -87,25 +88,27 @@ def get_quote():
 
 # ─────────────────────────────────────────────
 # 2️⃣  Text-fit helper
+#     max_font capped at 55 → smaller text
 # ─────────────────────────────────────────────
-def _best_fit(draw, text, font_path, max_w, max_h, max_font=110, min_font=28, spacing=18):
+def _best_fit(draw, text, font_path, max_w, max_h, max_font=55, min_font=22, spacing=14):
     for font_size in range(max_font, min_font - 1, -2):
         font = ImageFont.truetype(font_path, font_size)
         avg_char_w = font.getlength("A")
-        wrap_width = max(10, int((max_w * 0.88) / avg_char_w))
+        wrap_width = max(10, int((max_w * 0.82) / avg_char_w))
         wrapped = textwrap.fill(text, width=wrap_width)
         bbox = draw.multiline_textbbox((0, 0), wrapped, font=font, spacing=spacing)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        if tw <= max_w * 0.88 and th <= max_h:
+        if tw <= max_w * 0.82 and th <= max_h:
             return font, wrapped, tw, th
     font = ImageFont.truetype(font_path, min_font)
-    wrapped = textwrap.fill(text, width=30)
+    wrapped = textwrap.fill(text, width=35)
     bbox = draw.multiline_textbbox((0, 0), wrapped, font=font, spacing=spacing)
     return font, wrapped, bbox[2] - bbox[0], bbox[3] - bbox[1]
 
 
 # ─────────────────────────────────────────────
 # 3️⃣  Quote overlay image
+#     Box anchored at 3/4 of frame height
 # ─────────────────────────────────────────────
 def create_quote_image(
     quote_text, size=(1080, 1920),
@@ -115,21 +118,28 @@ def create_quote_image(
     img  = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    available_h = int(H * 0.72)
-    top_offset  = int(H * 0.10)
-    font, wrapped, tw, th = _best_fit(draw, quote_text, font_path, W, available_h)
+    # allow the box to occupy at most 20 % of frame height
+    max_box_h = int(H * 0.20)
+    font, wrapped, tw, th = _best_fit(draw, quote_text, font_path, W, max_box_h)
 
-    pad_x, pad_y = 48, 36
-    box_x0 = (W - tw) // 2 - pad_x
-    box_y0 = top_offset + (available_h - th) // 2 - pad_y
-    box_x1 = (W + tw) // 2 + pad_x
-    box_y1 = box_y0 + th + pad_y * 2
+    pad_x, pad_y = 36, 22
+    # anchor top of box at 3/4 of the frame
+    box_top = int(H * 0.62)
+    box_x0  = (W - tw) // 2 - pad_x
+    box_y0  = box_top
+    box_x1  = (W + tw) // 2 + pad_x
+    box_y1  = box_y0 + th + pad_y * 2
 
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
-    ImageDraw.Draw(ov).rounded_rectangle([box_x0, box_y0, box_x1, box_y1], radius=30, fill=(0, 0, 0, 160))
+    ImageDraw.Draw(ov).rounded_rectangle(
+        [box_x0, box_y0, box_x1, box_y1], radius=24, fill=(0, 0, 0, 175)
+    )
     img  = Image.alpha_composite(img, ov)
     draw = ImageDraw.Draw(img)
-    draw.multiline_text(((W - tw) // 2, box_y0 + pad_y), wrapped, font=font, fill="white", align="center", spacing=18)
+    draw.multiline_text(
+        ((W - tw) // 2, box_y0 + pad_y),
+        wrapped, font=font, fill="white", align="center", spacing=14,
+    )
 
     path = "/tmp/quote_overlay.png"
     img.save(path)
@@ -137,7 +147,8 @@ def create_quote_image(
 
 
 # ─────────────────────────────────────────────
-# 4️⃣  Author overlay image (shown at end)
+# 4️⃣  Author overlay image
+#     Sits just below the quote box (≈ 88 % down)
 # ─────────────────────────────────────────────
 def create_author_image(
     author, size=(1080, 1920),
@@ -149,24 +160,24 @@ def create_author_image(
     text  = f"— {author}"
     tw = th = 0
     font  = None
-    for fs in range(52, 27, -2):
+    for fs in range(36, 18, -2):          # smaller than before (max 36 px)
         font = ImageFont.truetype(font_path, fs)
         bbox = draw.textbbox((0, 0), text, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        if tw <= W * 0.88:
+        if tw <= W * 0.80:
             break
 
-    tx, ty   = (W - tw) // 2, int(H * 0.80)
-    pad_x, pad_y = 40, 24
+    tx, ty   = (W - tw) // 2, int(H * 0.875)   # sits below quote box
+    pad_x, pad_y = 28, 16
 
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
     ImageDraw.Draw(ov).rounded_rectangle(
         [tx - pad_x, ty - pad_y, tx + tw + pad_x, ty + th + pad_y],
-        radius=20, fill=(0, 0, 0, 170),
+        radius=16, fill=(0, 0, 0, 175),
     )
     img  = Image.alpha_composite(img, ov)
     draw = ImageDraw.Draw(img)
-    draw.text((tx, ty), text, font=font, fill=(255, 220, 80))
+    draw.text((tx, ty), text, font=font, fill=(255, 215, 60))
 
     path = "/tmp/author_overlay.png"
     img.save(path)
@@ -174,31 +185,36 @@ def create_author_image(
 
 
 # ─────────────────────────────────────────────
-# 5️⃣  Fetch Pexels video URL
+# 5️⃣  Fetch multiple Pexels video URLs
 # ─────────────────────────────────────────────
-def get_video_url(keyword="nature"):
+def get_video_urls(keyword="nature", count=5):
+    """Return up to `count` unique mp4 URLs from Pexels."""
     key = os.environ.get("PEXELS_API_KEY")
     if not key:
         print("❌ Missing PEXELS_API_KEY")
-        return None
+        return []
+    urls = []
     try:
         r = requests.get(
             "https://api.pexels.com/videos/search",
             headers={"Authorization": key},
-            params={"query": keyword, "per_page": 10, "orientation": "portrait"},
+            params={"query": keyword, "per_page": min(count * 2, 20), "orientation": "portrait"},
             timeout=10,
         )
         if r.status_code != 200:
-            return None
-        videos = r.json().get("videos")
-        if not videos:
-            return None
-        for f in random.choice(videos)["video_files"]:
-            if f["file_type"] == "video/mp4":
-                return f["link"]
+            return []
+        videos = r.json().get("videos", [])
+        random.shuffle(videos)
+        for video in videos:
+            for f in video["video_files"]:
+                if f["file_type"] == "video/mp4":
+                    urls.append(f["link"])
+                    break
+            if len(urls) >= count:
+                break
     except Exception as e:
         print(f"⚠️ Pexels error: {e}")
-    return None
+    return urls
 
 
 # ─────────────────────────────────────────────
@@ -216,6 +232,57 @@ def download_video(url):
     tmp.close()
     print("✅ Video downloaded:", tmp.name)
     return tmp.name
+
+
+# ─────────────────────────────────────────────
+# 6b️⃣  Build a 15-second composite from multiple clips
+# ─────────────────────────────────────────────
+def build_15s_clip(keyword, target=15.0):
+    """
+    Fetch several portrait videos, trim each to a short segment,
+    concatenate until we reach `target` seconds, then hard-cut to exactly
+    `target` seconds.  Returns a single moviepy clip.
+    """
+
+    FALLBACK = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
+    urls = get_video_urls(keyword, count=6)
+    if not urls:
+        urls = [FALLBACK]
+
+    clips     = []
+    total     = 0.0
+    remaining = target
+
+    for url in urls:
+        if remaining <= 0:
+            break
+        try:
+            path     = download_video(url)
+            raw      = VideoFileClip(path)
+            seg_dur  = min(raw.duration, remaining, 6.0)   # each segment ≤ 6 s
+            seg      = raw.subclip(0, seg_dur)
+            clips.append(seg)
+            total    += seg_dur
+            remaining = target - total
+            print(f"   ✂️  Added {seg_dur:.1f}s clip  (total so far: {total:.1f}s)")
+        except Exception as e:
+            print(f"   ⚠️  Skipping clip: {e}")
+
+    if not clips:
+        raise RuntimeError("No video clips could be loaded.")
+
+    combined = concatenate_videoclips(clips, method="compose")
+
+    # Hard-trim to exactly target seconds
+    if combined.duration > target:
+        combined = combined.subclip(0, target)
+
+    # Resize all to first clip's dimensions (in case sizes differ)
+    W, H = clips[0].w, clips[0].h
+    combined = combined.resize((W, H))
+
+    print(f"✅ Combined clip: {combined.duration:.2f}s  @ {W}×{H}")
+    return combined
 
 
 # ─────────────────────────────────────────────
@@ -272,12 +339,15 @@ def combine_with_background(tts_path, music_file, duration):
 # 9️⃣  Build the final YouTube Short
 # ─────────────────────────────────────────────
 def create_youtube_short(quote_text, author):
-    url  = get_video_url(quote_text.split()[0]) or "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
-    clip = VideoFileClip(download_video(url)).subclip(0, 15)
-    W, H = clip.w, clip.h
-    dur  = clip.duration          # 15 s
-    at   = dur - 4.5              # author appears 4.5 s before end
+    keyword = quote_text.split()[0]
 
+    # Build a 15 s clip from multiple portrait videos
+    clip = build_15s_clip(keyword, target=15.0)
+    W, H = clip.w, clip.h
+    dur  = clip.duration          # ≈ 15 s
+    at   = dur - 4.5              # author fades in 4.5 s before end
+
+    # Text overlays
     quote_clip  = ImageClip(create_quote_image(quote_text, (W, H))).set_duration(dur)
     author_clip = (
         ImageClip(create_author_image(author, (W, H)))
