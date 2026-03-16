@@ -111,23 +111,58 @@ def _best_fit(draw, text, font_path, max_w, max_h, max_font=55, min_font=22, spa
 
 
 # ─────────────────────────────────────────────
-# 3️⃣  Quote overlay image
-#     Box anchored at 3/4 of frame height
+# 3️⃣  Split quote into slide segments
+#     Splits on  .  !  ?  and  ,
+#     Merges very short fragments with the next one
 # ─────────────────────────────────────────────
-def create_quote_image(
-    quote_text, size=(1080, 1920),
+def split_into_segments(quote_text, min_words=3):
+    """
+    Split a quote into display segments at every sentence/clause boundary.
+    Returns a list of clean strings, each ready to show as one slide.
+
+    Example:
+      "Life, a culmination of the past, an awareness of the present."
+      -> ["Life, a culmination of the past", "an awareness of the present"]
+    """
+    import re
+    raw      = re.split(r'[.,!?]+', quote_text)
+    segments = [s.strip() for s in raw if s.strip()]
+
+    # Merge fragments shorter than min_words into the next segment
+    merged, buf = [], ""
+    for seg in segments:
+        if buf:
+            seg = buf + ", " + seg
+            buf = ""
+        if len(seg.split()) < min_words and seg != segments[-1]:
+            buf = seg
+        else:
+            merged.append(seg)
+    if buf:
+        if merged:
+            merged[-1] += ", " + buf
+        else:
+            merged.append(buf)
+
+    return merged if merged else [quote_text]
+
+
+# ─────────────────────────────────────────────
+# 3b️⃣  Render one segment as a PNG overlay
+#      Box sits at 3/4 of the frame height
+# ─────────────────────────────────────────────
+def render_segment_image(
+    text, idx, size=(1080, 1920),
     font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ):
     W, H = size
     img  = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # allow the box to occupy at most 20 % of frame height
-    max_box_h = int(H * 0.20)
-    font, wrapped, tw, th = _best_fit(draw, quote_text, font_path, W, max_box_h)
+    max_box_h = int(H * 0.22)
+    font, wrapped, tw, th = _best_fit(draw, text, font_path, W, max_box_h)
 
     pad_x, pad_y = 36, 22
-    # anchor top of box at 3/4 of the frame
     box_top = int(H * 0.62)
     box_x0  = (W - tw) // 2 - pad_x
     box_y0  = box_top
@@ -136,7 +171,7 @@ def create_quote_image(
 
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
     ImageDraw.Draw(ov).rounded_rectangle(
-        [box_x0, box_y0, box_x1, box_y1], radius=24, fill=(0, 0, 0, 175)
+        [box_x0, box_y0, box_x1, box_y1], radius=24, fill=(0, 0, 0, 180)
     )
     img  = Image.alpha_composite(img, ov)
     draw = ImageDraw.Draw(img)
@@ -145,14 +180,45 @@ def create_quote_image(
         wrapped, font=font, fill="white", align="center", spacing=14,
     )
 
-    path = "/tmp/quote_overlay.png"
+    path = f"/tmp/segment_{idx:02d}.png"
     img.save(path)
     return path
 
 
 # ─────────────────────────────────────────────
+# 3c️⃣  Build audio-synced fading slide clips
+# ─────────────────────────────────────────────
+def build_quote_slides(segments, start_times, durations, size, fade=0.30):
+    """
+    Create one ImageClip per segment timed to its TTS audio.
+
+    Args:
+        segments   : list of text strings
+        start_times: list of floats — when each slide starts (seconds)
+        durations  : list of floats — how long each slide is shown (seconds)
+        size       : (W, H) of the video frame
+        fade       : crossfade in/out duration
+    """
+    slides = []
+    for i, (seg, start, dur) in enumerate(zip(segments, start_times, durations)):
+        img_path = render_segment_image(seg, i, size=size)
+        preview  = seg[:50] + ("..." if len(seg) > 50 else "")
+        print(f"   📝 Slide {i+1}: [{start:.2f}s → {start+dur:.2f}s]  \"{preview}\"")
+
+        clip = (
+            ImageClip(img_path)
+            .set_start(start)
+            .set_duration(dur)
+            .crossfadein(min(fade, dur * 0.3))
+            .crossfadeout(min(fade, dur * 0.3))
+        )
+        slides.append(clip)
+    return slides
+
+
+# ─────────────────────────────────────────────
 # 4️⃣  Author overlay image
-#     Sits just below the quote box (≈ 88 % down)
+#     Golden text, sits just below the quote box
 # ─────────────────────────────────────────────
 def create_author_image(
     author, size=(1080, 1920),
@@ -164,14 +230,14 @@ def create_author_image(
     text  = f"— {author}"
     tw = th = 0
     font  = None
-    for fs in range(36, 18, -2):          # smaller than before (max 36 px)
+    for fs in range(36, 18, -2):
         font = ImageFont.truetype(font_path, fs)
         bbox = draw.textbbox((0, 0), text, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if tw <= W * 0.80:
             break
 
-    tx, ty   = (W - tw) // 2, int(H * 0.875)   # sits below quote box
+    tx, ty   = (W - tw) // 2, int(H * 0.875)
     pad_x, pad_y = 28, 16
 
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
@@ -295,83 +361,155 @@ def build_15s_clip(keyword, target=15.0):
 
 
 # ─────────────────────────────────────────────
-# 7️⃣  TTS audio — random gender with fallback
+# 7️⃣  TTS — load once, synthesise per segment
 # ─────────────────────────────────────────────
-def generate_audio(quote_text, author):
-    gender    = random.choice(["male", "female"])
-    full_text = f"{quote_text}. {author}.".replace("—", "-").replace("…", "...")
-    audio_out = "/tmp/quote_audio.wav"
-
+def _load_tts_engine():
+    """Pick a random gender, load TTS once, return (tts, speaker_idx)."""
+    gender = random.choice(["male", "female"])
     print(f"🎙️ Voice gender: {gender}")
-
     for label, cfg_map in [("primary", VOICE_PRIMARY), ("fallback", VOICE_FALLBACK)]:
         cfg = cfg_map[gender]
         try:
             print(f"   Trying {label}: {cfg['model']}")
             tts = TTS(model_name=cfg["model"], progress_bar=False, gpu=False)
-            kw  = {"text": full_text, "file_path": audio_out}
-            if cfg["speaker_idx"]:
-                kw["speaker"] = cfg["speaker_idx"]
-            tts.tts_to_file(**kw)
-            print(f"✅ Audio OK ({label}, {gender})")
-            return audio_out
+            print(f"✅ TTS loaded ({label}, {gender})")
+            return tts, cfg["speaker_idx"]
         except Exception as e:
             print(f"   ⚠️  {label} failed: {e}")
-
     raise RuntimeError("❌ All TTS options exhausted.")
 
 
+def _synth(tts, speaker, text, path):
+    """Synthesise one piece of text and return its duration in seconds."""
+    clean = text.replace("—", "-").replace("…", "...")
+    kw    = {"text": clean, "file_path": path}
+    if speaker:
+        kw["speaker"] = speaker
+    tts.tts_to_file(**kw)
+    return len(AudioSegment.from_file(path)) / 1000.0
+
+
+def generate_audio_segments(segments, author):
+    """
+    Generate one WAV per segment + one for the author.
+    Returns:
+        tts_paths  : list of wav paths  [seg0.wav, seg1.wav, ..., author.wav]
+        durations  : list of floats (seconds) matching tts_paths
+        PAUSE_MS   : inter-segment silence in ms
+    """
+    PAUSE_MS = 300   # 0.3 s breath between segments
+
+    tts, speaker = _load_tts_engine()
+    paths, durs  = [], []
+
+    for i, seg in enumerate(segments):
+        path = f"/tmp/tts_seg_{i:02d}.wav"
+        dur  = _synth(tts, speaker, seg, path)
+        paths.append(path)
+        durs.append(dur)
+        print(f"   🔊 Segment {i+1}: {dur:.2f}s  \"{seg[:50]}\"")
+
+    # Author spoken at the end
+    author_path = "/tmp/tts_author.wav"
+    author_dur  = _synth(tts, speaker, author, author_path)
+    paths.append(author_path)
+    durs.append(author_dur)
+    print(f"   🔊 Author: {author_dur:.2f}s  \"{author}\"")
+
+    return paths, durs, PAUSE_MS
+
+
 # ─────────────────────────────────────────────
-# 8️⃣  Mix TTS with background music
+# 8️⃣  Assemble full audio track
 # ─────────────────────────────────────────────
-def combine_with_background(tts_path, music_file, duration):
-    voice = AudioSegment.from_file(tts_path)
-    bg    = AudioSegment.from_file(music_file).apply_gain(-25)
+def assemble_audio(tts_paths, durations, pause_ms, music_file):
+    """
+    Concatenate all TTS segments (with short pauses), overlay background
+    music, and return (AudioFileClip, total_duration_seconds).
+    """
+    PAUSE = AudioSegment.silent(duration=pause_ms)
+    voice = AudioSegment.empty()
 
-    if len(bg) < len(voice):
-        bg = bg * ((len(voice) // len(bg)) + 1)
+    for path in tts_paths:
+        voice += AudioSegment.from_file(path) + PAUSE
 
-    mixed    = voice.overlay(bg)
-    total_ms = int(duration * 1000)
+    total_ms = len(voice)
+    total_s  = total_ms / 1000.0
 
-    if len(mixed) < total_ms:
-        mixed += AudioSegment.silent(duration=total_ms - len(mixed))
-    else:
-        mixed = mixed[:total_ms]
+    # Background music — loop to fill, then duck to -25 dB
+    bg = AudioSegment.from_file(music_file).apply_gain(-25)
+    if len(bg) < total_ms:
+        bg = bg * (total_ms // len(bg) + 1)
+    bg = bg[:total_ms]
+
+    mixed = voice.overlay(bg)
 
     out = "/tmp/final_audio.wav"
     mixed.export(out, format="wav")
-    return AudioFileClip(out).set_duration(duration)
+    print(f"✅ Audio assembled: {total_s:.2f}s")
+    return AudioFileClip(out).set_duration(total_s), total_s
 
 
 # ─────────────────────────────────────────────
 # 9️⃣  Build the final YouTube Short
+#     Video duration = total TTS audio duration
+#     Each slide appears exactly when its audio plays
 # ─────────────────────────────────────────────
 def create_youtube_short(quote_text, author):
     keyword = quote_text.split()[0]
 
-    # Build a 15 s clip from multiple portrait videos
-    clip = build_15s_clip(keyword, target=15.0)
-    W, H = clip.w, clip.h
-    dur  = clip.duration          # ≈ 15 s
-    at   = dur - 4.5              # author fades in 4.5 s before end
+    # ── 1. Split quote into segments ────────────────────────────────────────
+    segments = split_into_segments(quote_text)
+    print(f"📝 {len(segments)} segment(s) detected")
 
-    # Text overlays
-    quote_clip  = ImageClip(create_quote_image(quote_text, (W, H))).set_duration(dur)
+    # ── 2. Generate per-segment TTS → real durations ─────────────────────────
+    tts_paths, durations, pause_ms = generate_audio_segments(segments, author)
+    pause_s = pause_ms / 1000.0
+
+    # ── 3. Calculate exact start time for each segment slide ─────────────────
+    #       Layout: [seg0][pause][seg1][pause]...[segN][pause][author]
+    seg_starts  = []   # when each quote segment slide begins
+    seg_durs    = []   # display duration of each quote slide
+    cursor      = 0.0
+
+    for i, d in enumerate(durations[:-1]):   # all except author
+        seg_starts.append(cursor)
+        seg_durs.append(d + pause_s)         # slide stays up through the pause
+        cursor += d + pause_s
+
+    author_start = cursor
+    author_dur   = durations[-1]             # last item is the author
+    total_dur    = cursor + author_dur + pause_s
+
+    print(f"⏱  Total duration: {total_dur:.2f}s")
+    print(f"   Author appears at: {author_start:.2f}s")
+
+    # ── 4. Build background video to match total_dur ──────────────────────────
+    clip = build_15s_clip(keyword, target=total_dur)
+    W, H = clip.w, clip.h
+    # If audio is longer than video, loop/extend video
+    if clip.duration < total_dur:
+        from moviepy.editor import vfx
+        clip = clip.fx(vfx.loop, duration=total_dur)
+
+    # ── 5. Build synced text slides ───────────────────────────────────────────
+    slide_clips = build_quote_slides(segments, seg_starts, seg_durs, size=(W, H))
+
     author_clip = (
         ImageClip(create_author_image(author, (W, H)))
-        .set_start(at)
-        .set_duration(dur - at)
-        .crossfadein(0.8)
+        .set_start(author_start)
+        .set_duration(author_dur + pause_s)
+        .crossfadein(0.4)
+        .crossfadeout(0.3)
     )
 
-    final = CompositeVideoClip([clip, quote_clip, author_clip])
-    audio = combine_with_background(
-        generate_audio(quote_text, author),
-        random.choice(["music1.mp3", "music2.mp3", "music3.mp3"]),
-        dur,
-    )
-    final = final.set_audio(audio)
+    # ── 6. Assemble audio with background music ───────────────────────────────
+    music_file  = random.choice(["music1.mp3", "music2.mp3", "music3.mp3"])
+    audio_clip, _ = assemble_audio(tts_paths, durations, pause_ms, music_file)
+
+    # ── 7. Composite and render ───────────────────────────────────────────────
+    final = CompositeVideoClip([clip] + slide_clips + [author_clip])
+    final = final.set_audio(audio_clip)
 
     out = "/tmp/youtube_short.mp4"
     print("🎞 Rendering video...")
