@@ -94,7 +94,7 @@ def get_quote():
 # 2️⃣  Text-fit helper
 #     max_font capped at 55 → smaller text
 # ─────────────────────────────────────────────
-def _best_fit(draw, text, font_path, max_w, max_h, max_font=46, min_font=22, spacing=14):
+def _best_fit(draw, text, font_path, max_w, max_h, max_font=40, min_font=22, spacing=14):
     for font_size in range(max_font, min_font - 1, -2):
         font = ImageFont.truetype(font_path, font_size)
         avg_char_w = font.getlength("A")
