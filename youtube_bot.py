@@ -536,13 +536,13 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
     voice = AudioSegment.empty()
 
     for path in tts_paths:
-        voice += AudioSegment.from_file(path) + PAUSE
+        voice += AudioSegment.from_file(path).apply_gain(5) + PAUSE
 
     total_ms = len(voice)
     total_s  = total_ms / 1000.0
 
-    # Background music — loop to fill, then duck to -25 dB
-    bg = AudioSegment.from_file(music_file).apply_gain(-25)
+    # Background music — loop to fill, then duck to -18 dB
+    bg = AudioSegment.from_file(music_file).apply_gain(-18)
     if len(bg) < total_ms:
         bg = bg * (total_ms // len(bg) + 1)
     bg = bg[:total_ms]
