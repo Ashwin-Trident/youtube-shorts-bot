@@ -91,6 +91,20 @@ def get_quote():
 
 
 # ─────────────────────────────────────────────
+# 1b️⃣  Scroll-stopping hook line
+# ─────────────────────────────────────────────
+def get_hook():
+    hooks = [
+        "Read this if you're tired of life...",
+        "This will hit you hard...",
+        "Don't skip this...",
+        "If you're struggling, watch this...",
+        "This might change your mindset..."
+    ]
+    return random.choice(hooks)
+
+
+# ─────────────────────────────────────────────
 # 2️⃣  Text-fit helper
 #     max_font capped at 55 → smaller text
 # ─────────────────────────────────────────────
@@ -144,7 +158,8 @@ def split_into_segments(quote_text, min_words=3):
         else:
             merged.append(buf)
 
-    return merged if merged else [quote_text]
+    segments = [s.upper() for s in merged if s]
+    return segments if segments else [quote_text.upper()]
 
 
 # ─────────────────────────────────────────────
@@ -177,7 +192,9 @@ def render_segment_image(
     draw = ImageDraw.Draw(img)
     draw.multiline_text(
         ((W - tw) // 2, box_y0 + pad_y),
-        wrapped, font=font, fill="white", align="center", spacing=14,
+        wrapped, font=font, fill=(255, 255, 255),
+        stroke_width=2, stroke_fill=(0, 0, 0),
+        align="center", spacing=14,
     )
 
     path = f"/tmp/segment_{idx:02d}.png"
@@ -485,7 +502,7 @@ def generate_audio_segments(segments, author):
         durations : matching list of floats (seconds)
         PAUSE_MS  : inter-segment silence in ms
     """
-    PAUSE_MS = 400   # 0.4 s natural breath between clauses
+    PAUSE_MS = 200   # 0.2 s — faster pacing for better engagement
 
     tts, speaker = _load_tts_engine()
     paths, durs  = [], []
@@ -547,8 +564,9 @@ def create_youtube_short(quote_text, author):
     keyword = quote_text.split()[0]
 
     # ── 1. Split quote into segments ────────────────────────────────────────
-    segments = split_into_segments(quote_text)
-    print(f"📝 {len(segments)} segment(s) detected")
+    hook = get_hook()
+    segments = [hook] + split_into_segments(quote_text) + ["READ THAT AGAIN."]
+    print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     # ── 2. Generate per-segment TTS → real durations ─────────────────────────
     tts_paths, durations, pause_ms = generate_audio_segments(segments, author)
@@ -627,10 +645,17 @@ def upload_to_youtube(video_path):
 
     youtube = build("youtube", "v3", credentials=creds)
     today   = datetime.datetime.now().strftime("%Y-%m-%d")
+    titles  = [
+        "This will hit you hard...",
+        "Watch this if you're losing hope",
+        "This changed my mindset forever",
+        "Don't skip this video",
+        "One day you'll understand this",
+    ]
     body    = {
         "snippet": {
-            "title":       f"The Secret to Success | Daily Motivation {today}",
-            "description": f"#Shorts #Motivation #daily_motivation_quotes - {today}",
+            "title":       random.choice(titles),
+            "description": "#shorts #motivation #mindset #success #selfimprovement",
             "tags":        ["motivation", "shorts", "daily motivation"],
             "categoryId":  "22",
         },
