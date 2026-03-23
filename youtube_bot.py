@@ -561,8 +561,9 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
 #     Each slide appears exactly when its audio plays
 # ─────────────────────────────────────────────
 def create_youtube_short(quote_text, author):
-    keyword = quote_text.split()[0]
-
+   # keyword = quote_text.split()[0]
+     keywords = ["dark", "rain", "alone", "city night", "thinking", "sad"]
+     keyword = random.choice(keywords)
     # ── 1. Split quote into segments ────────────────────────────────────────
     hook = get_hook()
     segments = [hook] + split_into_segments(quote_text) + ["READ THAT AGAIN."]
