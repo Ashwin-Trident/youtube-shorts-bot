@@ -95,11 +95,11 @@ def get_quote():
 # ─────────────────────────────────────────────
 def get_hook():
     hooks = [
-        "Read this if you are tired of life...",
-        "This will hit you hard...",
-        "Don't skip this...",
-        "If you are struggling, watch this...",
-        "This might change your mindset..."
+        "YOU ARE NOT BEHIND IN LIFE.",
+        "READ THIS IF YOU FEEL LOST.",
+        "THIS WILL HIT YOU HARD.",
+        "YOU NEEDED THIS TODAY.",
+        "YOU ARE TRYING YOUR BEST."
     ]
     return random.choice(hooks)
 
