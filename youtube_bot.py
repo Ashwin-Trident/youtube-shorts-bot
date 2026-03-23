@@ -441,7 +441,7 @@ def _clean_text(text):
     """
     import re
     t = text.replace("—", " ").replace("–", " ").replace("…", " ")
-    t = t.replace(""", "").replace(""", "").replace("'", "'")
+    t = t.replace("\u201c", "").replace("\u201d", "").replace("\u2019", "'")
     # Keep only safe characters
     t = re.sub(r"[^a-zA-Z0-9 ',\.!\?]", " ", t)
     # Collapse runs of spaces / punctuation
@@ -561,8 +561,10 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
 #     Each slide appears exactly when its audio plays
 # ─────────────────────────────────────────────
 def create_youtube_short(quote_text, author):
-     keywords = ["dark", "rain", "alone", "city night", "thinking", "sad"]
-     keyword = random.choice(keywords)
+    # keyword = quote_text.split()[0]
+    keywords = ["dark", "rain", "alone", "city night", "thinking", "sad"]
+    keyword = random.choice(keywords)
+
     # ── 1. Split quote into segments ────────────────────────────────────────
     hook = get_hook()
     segments = [hook] + split_into_segments(quote_text) + ["READ THAT AGAIN."]
