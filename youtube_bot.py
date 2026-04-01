@@ -96,7 +96,7 @@ def get_quote():
 def get_hook():
     hooks = [
         "YOU ARE NOT LAZY.",
-        "READ THIS IF YOU FEEL LOST.",
+        "Most people do not know this about.",
         "THIS WILL HIT YOU HARD.",
         "YOU NEEDED THIS TODAY.",
         "YOU ARE TRYING YOUR BEST."
