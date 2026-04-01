@@ -163,73 +163,145 @@ def split_into_segments(quote_text, min_words=3):
 
 
 # ─────────────────────────────────────────────
-# 3b️⃣  Render one segment as a PNG overlay
-#      Box sits at 3/4 of the frame height
+# 3b️⃣  Render karaoke frame: all words shown,
+#      current word highlighted in yellow
 # ─────────────────────────────────────────────
-def render_segment_image(
-    text, idx, size=(1080, 1920),
+def render_word_highlight_image(
+    words, highlight_idx, frame_id, size=(1080, 1920),
     font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ):
-    W, H = size
-    img  = Image.new("RGBA", size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
+    """
+    Draw all words of a segment as wrapped text.
+    The word at highlight_idx is rendered in bright yellow;
+    spoken words (< highlight_idx) are light-gray;
+    upcoming words are white.
+    """
+    W, H   = size
+    text   = " ".join(words)
+    img    = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw   = ImageDraw.Draw(img)
 
-    max_box_h = int(H * 0.22)
-    font, wrapped, tw, th = _best_fit(draw, text, font_path, W, max_box_h)
+    max_box_h = int(H * 0.30)
+    font_size = 44
+    min_font  = 24
+    spacing   = 16
 
-    pad_x, pad_y = 36, 22
-    box_top = int(H * 0.62)
-    box_x0  = (W - tw) // 2 - pad_x
-    box_y0  = box_top
-    box_x1  = (W + tw) // 2 + pad_x
-    box_y1  = box_y0 + th + pad_y * 2
+    # Pick font size that fits
+    chosen_font = None
+    chosen_wrap = text
+    for fs in range(font_size, min_font - 1, -2):
+        f = ImageFont.truetype(font_path, fs)
+        avg_w = f.getlength("A")
+        wrap_w = max(8, int((W * 0.82) / avg_w))
+        wrapped = textwrap.fill(text, width=wrap_w)
+        bbox = draw.multiline_textbbox((0, 0), wrapped, font=f, spacing=spacing)
+        if bbox[2] - bbox[0] <= W * 0.82 and bbox[3] - bbox[1] <= max_box_h:
+            chosen_font = f
+            chosen_wrap = wrapped
+            break
+    if chosen_font is None:
+        chosen_font = ImageFont.truetype(font_path, min_font)
+        chosen_wrap = textwrap.fill(text, width=30)
 
+    bbox = draw.multiline_textbbox((0, 0), chosen_wrap, font=chosen_font, spacing=spacing)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    pad_x, pad_y = 40, 26
+    box_y0 = int(H * 0.60)
+    box_x0 = (W - tw) // 2 - pad_x
+    box_x1 = (W + tw) // 2 + pad_x
+    box_y1 = box_y0 + th + pad_y * 2
+
+    # Dark background box
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
     ImageDraw.Draw(ov).rounded_rectangle(
-        [box_x0, box_y0, box_x1, box_y1], radius=24, fill=(0, 0, 0, 180)
+        [box_x0, box_y0, box_x1, box_y1], radius=28, fill=(0, 0, 0, 190)
     )
     img  = Image.alpha_composite(img, ov)
     draw = ImageDraw.Draw(img)
-    draw.multiline_text(
-        ((W - tw) // 2, box_y0 + pad_y),
-        wrapped, font=font, fill=(255, 255, 255),
-        stroke_width=2, stroke_fill=(0, 0, 0),
-        align="center", spacing=14,
-    )
 
-    path = f"/tmp/segment_{idx:02d}.png"
+    # Re-wrap to get line structure, then word-colorize
+    lines       = chosen_wrap.split("\n")
+    word_cursor = 0                          # index into `words` list
+    text_x      = (W - tw) // 2
+    cursor_y    = box_y0 + pad_y
+
+    for line in lines:
+        line_words   = line.split()
+        line_bbox    = draw.textbbox((0, 0), line, font=chosen_font)
+        line_w       = line_bbox[2] - line_bbox[0]
+        line_x       = (W - line_w) // 2    # center each line individually
+        x            = line_x
+
+        for wi, word in enumerate(line_words):
+            global_wi = word_cursor + wi
+
+            if global_wi == highlight_idx:
+                color = (255, 230, 0)         # bright yellow  — currently spoken
+            elif global_wi < highlight_idx:
+                color = (180, 180, 180)       # light gray     — already spoken
+            else:
+                color = (255, 255, 255)       # white          — upcoming
+
+            # Draw stroke then fill
+            draw.text((x, cursor_y), word, font=chosen_font,
+                      fill=(0, 0, 0), stroke_width=3, stroke_fill=(0, 0, 0))
+            draw.text((x, cursor_y), word, font=chosen_font, fill=color)
+
+            word_w = chosen_font.getlength(word + " ")
+            x += word_w
+
+        word_cursor += len(line_words)
+        line_h = draw.textbbox((0, 0), "Ag", font=chosen_font)[3] + spacing
+        cursor_y += line_h
+
+    path = f"/tmp/karaoke_{frame_id:04d}.png"
     img.save(path)
     return path
 
 
 # ─────────────────────────────────────────────
-# 3c️⃣  Build audio-synced fading slide clips
+# 3c️⃣  Build audio-synced karaoke word clips
 # ─────────────────────────────────────────────
-def build_quote_slides(segments, start_times, durations, size, fade=0.30):
+def build_quote_slides(segments, start_times, durations, size, fade=0.10):
     """
-    Create one ImageClip per segment timed to its TTS audio.
+    For each segment, split into words and create one ImageClip per word.
+    Each word is highlighted in yellow as it is (approximately) spoken,
+    while the rest of the segment text stays visible for context.
 
-    Args:
-        segments   : list of text strings
-        start_times: list of floats — when each slide starts (seconds)
-        durations  : list of floats — how long each slide is shown (seconds)
-        size       : (W, H) of the video frame
-        fade       : crossfade in/out duration
+    Word durations are estimated by sharing the segment duration
+    proportionally to each word's character length.
     """
-    slides = []
-    for i, (seg, start, dur) in enumerate(zip(segments, start_times, durations)):
-        img_path = render_segment_image(seg, i, size=size)
-        preview  = seg[:50] + ("..." if len(seg) > 50 else "")
-        print(f"   📝 Slide {i+1}: [{start:.2f}s → {start+dur:.2f}s]  \"{preview}\"")
+    slides     = []
+    frame_id   = 0
 
-        clip = (
-            ImageClip(img_path)
-            .set_start(start)
-            .set_duration(dur)
-            .crossfadein(min(fade, dur * 0.3))
-            .crossfadeout(min(fade, dur * 0.3))
-        )
-        slides.append(clip)
+    for seg_i, (seg, seg_start, seg_dur) in enumerate(zip(segments, start_times, durations)):
+        words = seg.split()
+        n     = len(words)
+        if n == 0:
+            continue
+
+        # Distribute time proportional to word length (longer words take more time)
+        char_counts = [max(len(w), 1) for w in words]
+        total_chars = sum(char_counts)
+        word_durs   = [seg_dur * (c / total_chars) for c in char_counts]
+
+        preview = seg[:50] + ("..." if len(seg) > 50 else "")
+        print(f"   📝 Segment {seg_i+1}: [{seg_start:.2f}s → {seg_start+seg_dur:.2f}s]  \"{preview}\"  ({n} words)")
+
+        word_start = seg_start
+        for w_i, (word, wdur) in enumerate(zip(words, word_durs)):
+            img_path = render_word_highlight_image(words, w_i, frame_id, size=size)
+            clip = (
+                ImageClip(img_path)
+                .set_start(word_start)
+                .set_duration(wdur)
+                .crossfadein(min(fade, wdur * 0.25))
+            )
+            slides.append(clip)
+            word_start += wdur
+            frame_id   += 1
+
     return slides
 
 
