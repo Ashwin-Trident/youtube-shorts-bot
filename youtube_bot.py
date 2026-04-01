@@ -54,15 +54,31 @@ ensure_espeak()   # always runs before any TTS import/usage
 
 
 # ─────────────────────────────────────────────
-# Voice config: male & female (with fallbacks)
+# Voice config  — 100% FREE, no API key needed
+#   edge-tts uses Microsoft Azure Neural voices
+#   via the Edge browser endpoint (no account).
+#   Fallback: Coqui (fully offline)
 # ─────────────────────────────────────────────
-VOICE_PRIMARY = {
-    "female": {"model": "tts_models/en/ljspeech/tacotron2-DDC", "speaker_idx": None},
-    "male":   {"model": "tts_models/en/vctk/vits",              "speaker_idx": "p226"},
+
+# Microsoft Azure Neural voices — all free via edge-tts
+# Best voices for dramatic motivational narration:
+EDGE_VOICES = {
+    "male": [
+        "en-US-GuyNeural",       # deep, confident — best for motivation
+        "en-GB-RyanNeural",      # British narrator, cinematic feel
+        "en-US-DavisNeural",     # warm, authoritative
+        "en-AU-WilliamNeural",   # strong Australian accent, distinctive
+    ],
+    "female": [
+        "en-US-AriaNeural",      # natural, expressive — most popular
+        "en-US-JennyNeural",     # warm, clear
+        "en-GB-SoniaNeural",     # calm British female
+        "en-US-SaraNeural",      # bright, energetic
+    ],
 }
 
-# fallback models that do NOT require espeak-ng
-VOICE_FALLBACK = {
+# Coqui fallback (offline, no internet needed)
+VOICE_COQUI = {
     "female": {"model": "tts_models/en/ljspeech/tacotron2-DDC", "speaker_idx": None},
     "male":   {"model": "tts_models/en/ljspeech/glow-tts",      "speaker_idx": None},
 }
@@ -451,89 +467,36 @@ def build_15s_clip(keyword, target=15.0):
 
 
 # ─────────────────────────────────────────────
-# 7️⃣  TTS — load once, synthesise per segment
+# 7️⃣  TTS — edge-tts (FREE Microsoft Neural)
+#         -> Coqui (offline fallback)
+#
+# Install once:  pip install edge-tts
+# No API key, no account, no cost — ever.
 # ─────────────────────────────────────────────
-def _load_tts_engine():
-    """Pick a random gender, load TTS once, return (tts, speaker_idx)."""
-    gender = random.choice(["male", "female"])
-    print(f"🎙️ Voice gender: {gender}")
-    for label, cfg_map in [("primary", VOICE_PRIMARY), ("fallback", VOICE_FALLBACK)]:
-        cfg = cfg_map[gender]
-        try:
-            print(f"   Trying {label}: {cfg['model']}")
-            tts = TTS(model_name=cfg["model"], progress_bar=False, gpu=False)
-            print(f"✅ TTS loaded ({label}, {gender})")
-            return tts, cfg["speaker_idx"]
-        except Exception as e:
-            print(f"   ⚠️  {label} failed: {e}")
-    raise RuntimeError("❌ All TTS options exhausted.")
 
+import asyncio
 
-# Speaking rate: 0.75 = 75% speed (comfortably slow, easy to follow)
-# Range: 0.5 (very slow) → 1.0 (normal) — adjust to taste
-SPEECH_RATE = 0.88
-
-
-def _slow_down(input_path, output_path, rate=SPEECH_RATE):
-    """
-    Time-stretch a WAV to `rate` speed using ffmpeg atempo filter.
-    atempo range is 0.5–2.0; for rates below 0.5 we chain two filters.
-    Returns duration of the slowed file in seconds.
-    """
-    # Build atempo chain: e.g. 0.75 → "atempo=0.75"
-    # If rate < 0.5 we need two passes: rate=0.5*0.5=0.25 → "atempo=0.5,atempo=0.5"
-    if rate >= 0.5:
-        atempo = f"atempo={rate}"
-    else:
-        # Two-stage: sqrt(rate) each time
-        import math
-        stage = math.sqrt(rate)
-        atempo = f"atempo={stage:.4f},atempo={stage:.4f}"
-
-    cmd = [
-        "ffmpeg", "-y", "-i", input_path,
-        "-filter:a", atempo,
-        "-ar", "22050",    # keep sample rate consistent with TTS output
-        output_path
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"   ⚠️  ffmpeg atempo failed, using original: {result.stderr[-200:]}")
-        import shutil
-        shutil.copy(input_path, output_path)
-
-    return len(AudioSegment.from_file(output_path)) / 1000.0
+# edge-tts rate: "-12%" ≈ SPEECH_RATE 0.88 (slightly slower for clarity)
+EDGE_RATE   = "-12%"
+EDGE_VOLUME = "+0%"
 
 
 def _clean_text(text):
-    """
-    Strip everything the TTS phonemizer can mis-read as extra speech.
-    - Remove all characters except letters, digits, spaces, and basic punct
-    - Collapse multiple spaces / punctuation
-    - Ensure the sentence ends with a single period (gives a clean stop)
-    """
+    """Strip characters that confuse TTS; end with a clean period."""
     import re
-    t = text.replace("—", " ").replace("–", " ").replace("…", " ")
+    t = text.replace("\u2014", " ").replace("\u2013", " ").replace("\u2026", " ")
     t = t.replace("\u201c", "").replace("\u201d", "").replace("\u2019", "'")
-    # Keep only safe characters
-    t = re.sub(r"[^a-zA-Z0-9 ',\.!\?]", " ", t)
-    # Collapse runs of spaces / punctuation
-    t = re.sub(r"[',\.!\?]{2,}", ".", t)
+    t = re.sub(r"[^a-zA-Z0-9 \',\.!\?]", " ", t)
+    t = re.sub(r"[\',\.!\?]{2,}", ".", t)
     t = re.sub(r" {2,}", " ", t).strip()
-    # Remove any trailing punctuation then add a clean full stop
-    t = re.sub(r"[',\.!\? ]+$", "", t) + "."
+    t = re.sub(r"[\',\.!\? ]+$", "", t) + "."
     return t
 
 
-def _trim_silence(input_path, output_path, silence_thresh=-45, min_silence_ms=200):
-    """
-    Use ffmpeg silenceremove to cut trailing noise/garbage after speech ends.
-    Keeps leading audio intact; only trims the tail.
-    """
+def _trim_silence(input_path, output_path, silence_thresh=-45):
+    """Trim trailing silence from a WAV using ffmpeg."""
     cmd = [
-        "ffmpeg", "-y", "-i", input_path,
-        "-af",
-        # stop_periods=-1 = trim from the END; stop_threshold in dB
+        "ffmpeg", "-y", "-i", input_path, "-af",
         f"silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold={silence_thresh}dB",
         output_path,
     ]
@@ -543,53 +506,117 @@ def _trim_silence(input_path, output_path, silence_thresh=-45, min_silence_ms=20
         shutil.copy(input_path, output_path)
 
 
-def _synth(tts, speaker, text, path):
+async def _edge_tts_async(text, mp3_path, voice):
+    """Async helper — edge-tts requires async."""
+    import edge_tts
+    communicate = edge_tts.Communicate(text, voice, rate=EDGE_RATE, volume=EDGE_VOLUME)
+    await communicate.save(mp3_path)
+
+
+def _synth_edge(text, path, voice):
     """
-    1. Deep-clean text to stop TTS hallucinating on special chars
-    2. Synthesise → raw WAV
-    3. Trim trailing silence / noise
-    4. Time-stretch to SPEECH_RATE
-    Returns duration of the final file in seconds.
+    Synthesise text with Microsoft Azure Neural voice via edge-tts (FREE).
+    Saves MP3 -> converts to WAV -> trims silence.
+    Returns WAV duration in seconds.
     """
     clean    = _clean_text(text)
-    raw_path = path.replace(".wav", "_raw.wav")
+    mp3_path = path.replace(".wav", "_edge.mp3")
     trim_path = path.replace(".wav", "_trim.wav")
 
+    # edge-tts is async; run it synchronously
+    asyncio.run(_edge_tts_async(clean, mp3_path, voice))
+
+    # MP3 -> WAV
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", mp3_path, "-ar", "22050", path],
+        capture_output=True,
+    )
+
+    # Trim trailing silence
+    _trim_silence(path, trim_path)
+    import shutil
+    shutil.move(trim_path, path)
+
+    return len(AudioSegment.from_file(path)) / 1000.0
+
+
+def _synth_coqui(text, path, tts_engine, speaker):
+    """Offline fallback via Coqui TTS (slower, more robotic but no internet needed)."""
+    import re, shutil, math
+    clean     = _clean_text(text)
+    raw_path  = path.replace(".wav", "_raw.wav")
+    trim_path = path.replace(".wav", "_trim.wav")
     kw = {"text": clean, "file_path": raw_path}
     if speaker:
         kw["speaker"] = speaker
-    tts.tts_to_file(**kw)
-
-    # Trim trailing noise before slowing down
+    tts_engine.tts_to_file(**kw)
     _trim_silence(raw_path, trim_path)
 
-    # Slow it down
-    return _slow_down(trim_path, path, rate=SPEECH_RATE)
+    # Slow down Coqui output to match pacing
+    rate   = 0.88
+    atempo = f"atempo={rate}"
+    cmd    = ["ffmpeg", "-y", "-i", trim_path, "-filter:a", atempo,
+              "-ar", "22050", path]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        shutil.copy(trim_path, path)
+    return len(AudioSegment.from_file(path)) / 1000.0
+
+
+def _pick_voice():
+    """Pick gender + voice once per video so all segments sound consistent."""
+    gender = random.choice(["male", "female"])
+    voice  = random.choice(EDGE_VOICES[gender])
+    print(f"🎙  Voice: {voice}  (FREE — Microsoft Azure Neural via edge-tts)")
+    return gender, voice
+
+
+def _synth_one(text, path, voice, coqui_cfg):
+    """
+    Try edge-tts first (free, neural quality).
+    Falls back to Coqui if edge-tts fails (e.g. no internet).
+    Returns final WAV duration in seconds.
+    """
+    # 1. edge-tts (free Microsoft Neural voice)
+    try:
+        dur = _synth_edge(text, path, voice)
+        print(f"      via edge-tts  ({dur:.2f}s)")
+        return dur
+    except Exception as e:
+        print(f"   ⚠️  edge-tts failed: {e}")
+
+    # 2. Coqui (offline fallback)
+    try:
+        tts = TTS(model_name=coqui_cfg["model"], progress_bar=False, gpu=False)
+        dur = _synth_coqui(text, path, tts, coqui_cfg["speaker_idx"])
+        print(f"      via Coqui offline  ({dur:.2f}s)")
+        return dur
+    except Exception as e:
+        raise RuntimeError(f"All TTS engines failed: {e}")
 
 
 def generate_audio_segments(segments, author):
     """
-    Generate one WAV per segment + one for the author, all time-stretched.
+    Generate one WAV per segment + author — all FREE, same voice throughout.
     Returns:
         tts_paths : [seg0.wav, seg1.wav, ..., author.wav]
-        durations : matching list of floats (seconds)
-        PAUSE_MS  : inter-segment silence in ms
+        durations : matching durations in seconds
+        PAUSE_MS  : inter-segment silence in milliseconds
     """
-    PAUSE_MS = 200   # 0.2 s — faster pacing for better engagement
+    PAUSE_MS = 200
+    gender, voice = _pick_voice()
+    coqui_cfg     = VOICE_COQUI[gender]
 
-    tts, speaker = _load_tts_engine()
-    paths, durs  = [], []
-
+    paths, durs = [], []
     for i, seg in enumerate(segments):
         path = f"/tmp/tts_seg_{i:02d}.wav"
-        dur  = _synth(tts, speaker, seg, path)
+        dur  = _synth_one(seg, path, voice, coqui_cfg)
         paths.append(path)
         durs.append(dur)
         print(f"   🔊 Segment {i+1}: {dur:.2f}s  \"{seg[:50]}\"")
 
-    # Author spoken at the end
     author_path = "/tmp/tts_author.wav"
-    author_dur  = _synth(tts, speaker, author, author_path)
+    author_dur  = _synth_one(author, author_path, voice, coqui_cfg)
     paths.append(author_path)
     durs.append(author_dur)
     print(f"   🔊 Author: {author_dur:.2f}s  \"{author}\"")
