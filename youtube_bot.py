@@ -181,10 +181,10 @@ def render_word_highlight_image(
     img    = Image.new("RGBA", size, (0, 0, 0, 0))
     draw   = ImageDraw.Draw(img)
 
-    max_box_h = int(H * 0.30)
-    font_size = 44
-    min_font  = 24
-    spacing   = 16
+    max_box_h = int(H * 0.28)
+    font_size = 36          # reduced from 44 — cleaner, less cramped
+    min_font  = 20
+    spacing   = 14
 
     # Pick font size that fits
     chosen_font = None
@@ -263,7 +263,7 @@ def render_word_highlight_image(
 # ─────────────────────────────────────────────
 # 3c️⃣  Build audio-synced karaoke word clips
 # ─────────────────────────────────────────────
-def build_quote_slides(segments, start_times, durations, size, fade=0.10):
+def build_quote_slides(segments, start_times, durations, size):
     """
     For each segment, split into words and create one ImageClip per word.
     Each word is highlighted in yellow as it is (approximately) spoken,
@@ -292,11 +292,12 @@ def build_quote_slides(segments, start_times, durations, size, fade=0.10):
         word_start = seg_start
         for w_i, (word, wdur) in enumerate(zip(words, word_durs)):
             img_path = render_word_highlight_image(words, w_i, frame_id, size=size)
+            # NO crossfadein — hard cuts prevent the alpha-bleed flicker that
+            # occurs when adjacent clips both have transparency transitions.
             clip = (
                 ImageClip(img_path)
                 .set_start(word_start)
                 .set_duration(wdur)
-                .crossfadein(min(fade, wdur * 0.25))
             )
             slides.append(clip)
             word_start += wdur
