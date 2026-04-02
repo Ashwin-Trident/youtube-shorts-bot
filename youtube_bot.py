@@ -500,66 +500,101 @@ def generate_thumbnail(
 
         text_region_top = int(H * 0.40)
 
+    # ── Layout constants ──────────────────────────────────────────────────────
+    hook_max_w   = int(W * 0.88)
+    PAD_BOTTOM   = 55                          # breathing room at very bottom
+    text_budget  = H - text_region_top - PAD_BOTTOM   # px available for ALL text
+
+    # Fixed chrome heights (bar + gaps + divider + author padding)
+    # bar(6) + gap_bar_hook(20) + gap_hook_ex(22) + gap_ex_div(22) + div(2) + gap_div_au(16)
+    CHROME_H = 6 + 20 + 22 + 22 + 2 + 16
+
+    # ── Pick font sizes that make EVERYTHING fit vertically ───────────────────
+    excerpt     = " ".join(quote_text.split()[:8])
+    if len(quote_text.split()) > 8:
+        excerpt += "..."
+    au_text = f"— {author}"
+
+    chosen = None
+    for fs in range(80, 22, -4):           # try hook sizes large → small
+        fs2 = max(18, int(fs * 0.48))      # excerpt ~48% of hook size
+        fs3 = max(18, int(fs * 0.44))      # author  ~44% of hook size
+
+        f  = ImageFont.truetype(bold_font,   fs)
+        f2 = ImageFont.truetype(bold_font,   fs2)
+        f3 = ImageFont.truetype(italic_font, fs3)
+
+        # Wrap each block to width
+        ww  = max(6, int(hook_max_w / f.getlength("A")))
+        ww2 = max(8, int(hook_max_w / f2.getlength("A")))
+        hook_w  = tw.fill(hook.upper(),    width=ww)
+        ex_w    = tw.fill(excerpt.upper(), width=ww2)
+
+        hbb = draw.multiline_textbbox((0,0), hook_w, font=f,  spacing=8)
+        ebb = draw.multiline_textbbox((0,0), ex_w,   font=f2, spacing=7)
+        abb = draw.textbbox((0,0), au_text, font=f3)
+
+        hook_h = hbb[3] - hbb[1]
+        ex_h   = ebb[3] - ebb[1]
+        au_h   = abb[3] - abb[1]
+
+        total_h = CHROME_H + hook_h + ex_h + au_h
+
+        # Accept if everything fits AND hook is not wider than allowed
+        if total_h <= text_budget and hbb[2]-hbb[0] <= hook_max_w:
+            chosen = (f, hook_w, hook_h, hbb,
+                      f2, ex_w, ex_h, ebb,
+                      f3, au_h, abb)
+            break
+
+    if chosen is None:
+        # Absolute fallback: minimum sizes, truncate if needed
+        f   = ImageFont.truetype(bold_font,   22)
+        f2  = ImageFont.truetype(bold_font,   18)
+        f3  = ImageFont.truetype(italic_font, 18)
+        hook_w = tw.fill(hook.upper(),    width=30)
+        ex_w   = tw.fill(excerpt.upper(), width=34)
+        hbb = draw.multiline_textbbox((0,0), hook_w, font=f,  spacing=8)
+        ebb = draw.multiline_textbbox((0,0), ex_w,   font=f2, spacing=7)
+        abb = draw.textbbox((0,0), au_text, font=f3)
+        hook_h = hbb[3]-hbb[1]; ex_h = ebb[3]-ebb[1]; au_h = abb[3]-abb[1]
+        chosen = (f, hook_w, hook_h, hbb, f2, ex_w, ex_h, ebb, f3, au_h, abb)
+
+    (f,  hook_w, hook_h, hbb,
+     f2, ex_w,   ex_h,   ebb,
+     f3, au_h,   abb) = chosen
+
     # ── Gold accent bar ───────────────────────────────────────────────────────
-    hook_max_w = int(W * 0.88)
     bar_y = text_region_top + 10
     bar_w = int(W * 0.52)
     bar_x = (W - bar_w) // 2
     draw.rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + 6], fill=(255, 200, 50))
 
-    # ── Hook text (large, bold, white) ────────────────────────────────────────
+    # ── Hook text ─────────────────────────────────────────────────────────────
     hook_y = bar_y + 20
-    for fs in range(84, 34, -4):
-        f = ImageFont.truetype(bold_font, fs)
-        avg_w = f.getlength("A")
-        ww    = max(6, int(hook_max_w / avg_w))
-        wrapped = tw.fill(hook.upper(), width=ww)
-        bbox = draw.multiline_textbbox((0, 0), wrapped, font=f, spacing=8)
-        if bbox[2] - bbox[0] <= hook_max_w:
-            break
-    hook_bbox = draw.multiline_textbbox((0, 0), wrapped, font=f, spacing=8)
-    hook_h    = hook_bbox[3] - hook_bbox[1]
-    hx = (W - (hook_bbox[2] - hook_bbox[0])) // 2
-    draw.multiline_text((hx+3, hook_y+3), wrapped, font=f,
+    hx = (W - (hbb[2] - hbb[0])) // 2
+    draw.multiline_text((hx+3, hook_y+3), hook_w, font=f,
                         fill=(0,0,0,180), spacing=8, align="center")
-    draw.multiline_text((hx, hook_y), wrapped, font=f,
+    draw.multiline_text((hx, hook_y), hook_w, font=f,
                         fill=(255,255,255), stroke_width=3,
                         stroke_fill=(0,0,0), spacing=8, align="center")
 
-    # ── Quote excerpt (first 8 words, smaller grey) ───────────────────────────
-    excerpt = " ".join(quote_text.split()[:8])
-    if len(quote_text.split()) > 8:
-        excerpt += "..."
+    # ── Quote excerpt ─────────────────────────────────────────────────────────
     ex_y = hook_y + hook_h + 22
-    for fs2 in range(38, 20, -2):
-        f2 = ImageFont.truetype(bold_font, fs2)
-        ww2 = max(8, int(hook_max_w / f2.getlength("A")))
-        ex_wrapped = tw.fill(excerpt.upper(), width=ww2)
-        bbox2 = draw.multiline_textbbox((0, 0), ex_wrapped, font=f2, spacing=7)
-        if bbox2[2] - bbox2[0] <= hook_max_w:
-            break
-    ex_bbox = draw.multiline_textbbox((0, 0), ex_wrapped, font=f2, spacing=7)
-    ex_x = (W - (ex_bbox[2] - ex_bbox[0])) // 2
-    draw.multiline_text((ex_x, ex_y), ex_wrapped, font=f2,
+    ex_x = (W - (ebb[2] - ebb[0])) // 2
+    draw.multiline_text((ex_x, ex_y), ex_w, font=f2,
                         fill=(195,195,195), stroke_width=2,
                         stroke_fill=(0,0,0), spacing=7, align="center")
 
     # ── Thin white divider ────────────────────────────────────────────────────
-    div_y = ex_y + (ex_bbox[3] - ex_bbox[1]) + 22
+    div_y = ex_y + ex_h + 22
     div_w = int(W * 0.28)
     draw.rectangle([(W-div_w)//2, div_y, (W+div_w)//2, div_y+2],
                    fill=(255,255,255,150))
 
     # ── Author name (gold italic) ─────────────────────────────────────────────
-    au_text = f"— {author}"
-    au_y    = div_y + 16
-    for fs3 in range(36, 20, -2):
-        f3 = ImageFont.truetype(italic_font, fs3)
-        bbox3 = draw.textbbox((0, 0), au_text, font=f3)
-        if bbox3[2] - bbox3[0] <= hook_max_w:
-            break
-    bbox3 = draw.textbbox((0, 0), au_text, font=f3)
-    au_x  = (W - (bbox3[2] - bbox3[0])) // 2
+    au_y = div_y + 16
+    au_x = (W - (abb[2] - abb[0])) // 2
     draw.text((au_x, au_y), au_text, font=f3,
               fill=(255,200,50), stroke_width=2, stroke_fill=(0,0,0))
 
