@@ -962,16 +962,16 @@ def upload_to_youtube(video_path, thumb_path=None):
     from googleapiclient.http import MediaFileUpload
     import google.auth.transport.requests
 
+    # Back to youtube.upload — no scope change needed from the original token.
+    # The thumbnail is already baked into frame 0 of the video, so YouTube
+    # Studio will offer it in the frame selector automatically.
     creds = Credentials(
         None,
-        refresh_token   = os.environ.get("REFRESH_TOKEN"),
-        token_uri       = "https://oauth2.googleapis.com/token",
-        client_id       = os.environ.get("CLIENT_ID"),
-        client_secret   = os.environ.get("CLIENT_SECRET"),
-        scopes          = [
-            "https://www.googleapis.com/auth/youtube.upload",
-            "https://www.googleapis.com/auth/youtube",          # needed for thumbnails.set
-        ],
+        refresh_token = os.environ.get("REFRESH_TOKEN"),
+        token_uri     = "https://oauth2.googleapis.com/token",
+        client_id     = os.environ.get("CLIENT_ID"),
+        client_secret = os.environ.get("CLIENT_SECRET"),
+        scopes        = ["https://www.googleapis.com/auth/youtube.upload"],
     )
     creds.refresh(google.auth.transport.requests.Request())
 
@@ -983,7 +983,7 @@ def upload_to_youtube(video_path, thumb_path=None):
         "Don't skip this video",
         "One day you'll understand this",
     ]
-    body    = {
+    body = {
         "snippet": {
             "title":       random.choice(titles),
             "description": "#shorts #motivation #mindset #success #selfimprovement",
@@ -993,7 +993,6 @@ def upload_to_youtube(video_path, thumb_path=None):
         "status": {"privacyStatus": "public"},
     }
 
-    # ── Upload video ──────────────────────────────────────────────────────────
     resp = (
         youtube.videos()
         .insert(part="snippet,status", body=body,
@@ -1002,21 +1001,7 @@ def upload_to_youtube(video_path, thumb_path=None):
     )
     video_id = resp["id"]
     print(f"✅ Uploaded! https://youtube.com/shorts/{video_id}")
-
-    # ── Set custom thumbnail ──────────────────────────────────────────────────
-    if thumb_path:
-        try:
-            youtube.thumbnails().set(
-                videoId   = video_id,
-                media_body= MediaFileUpload(thumb_path, mimetype="image/png"),
-            ).execute()
-            print(f"🖼  Thumbnail set: {thumb_path}")
-        except Exception as e:
-            # thumbnails.set requires channel to be verified (phone number).
-            # If not verified yet, the video is still live — just without custom thumb.
-            print(f"⚠️  Thumbnail upload skipped: {e}")
-            print("   👉 Verify your channel at youtube.com/verify to enable custom thumbnails.")
-
+    print("🖼  Thumbnail is frame 0 — go to YouTube Studio > Details > Thumbnail to select it.")
 
 # ─────────────────────────────────────────────
 # Main
