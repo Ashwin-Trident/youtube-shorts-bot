@@ -361,6 +361,215 @@ def create_author_image(
 
 
 # ─────────────────────────────────────────────
+# 4b  Fetch author photo from Wikipedia (FREE)
+# ─────────────────────────────────────────────
+def fetch_author_photo(author_name):
+    """
+    Query Wikipedia REST API for the author's main image.
+    Returns local path to downloaded JPG, or None if not found.
+    No API key required — Wikipedia is fully open.
+    """
+    try:
+        # Normalise name for Wikipedia title format
+        title = author_name.strip().replace(" ", "_")
+        api   = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+        r = requests.get(api, timeout=10,
+                         headers={"User-Agent": "YoutubeShortsBot/1.0"})
+        if r.status_code != 200:
+            print(f"   ℹ️  Wikipedia: no page for '{author_name}'")
+            return None
+
+        data     = r.json()
+        thumb    = data.get("thumbnail") or data.get("originalimage")
+        if not thumb:
+            print(f"   ℹ️  Wikipedia: no photo for '{author_name}'")
+            return None
+
+        img_url  = thumb["source"]
+        img_resp = requests.get(img_url, timeout=15,
+                                headers={"User-Agent": "YoutubeShortsBot/1.0"})
+        if img_resp.status_code != 200:
+            return None
+
+        out = f"/tmp/author_photo_{author_name[:20].replace(' ','_')}.jpg"
+        with open(out, "wb") as fh:
+            fh.write(img_resp.content)
+        print(f"   ✅ Author photo: {out}")
+        return out
+
+    except Exception as e:
+        print(f"   ⚠️  fetch_author_photo failed: {e}")
+        return None
+
+
+# ─────────────────────────────────────────────
+# 4c  Generate thumbnail (1080×1920)
+#
+#  Layout:
+#   ┌──────────────────────────────┐
+#   │  Author photo — top 60%      │  ← sharp, colour, slightly darkened
+#   │  (face/upper body visible)   │
+#   ├──────────────────────────────┤
+#   │  Black panel — bottom 40%    │  ← solid dark base for text
+#   │   ══ gold accent bar ══      │
+#   │   HOOK LINE  (bold, white)   │
+#   │   Short quote excerpt        │
+#   │   ── thin divider ──         │
+#   │   — Author Name (gold)       │
+#   └──────────────────────────────┘
+#
+#  Fallback: if no author photo found, use blurred video frame
+#  for the full background instead.
+# ─────────────────────────────────────────────
+def generate_thumbnail(
+    hook, quote_text, author, bg_frame_path,
+    size=(1080, 1920),
+    bold_font  = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    italic_font= "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
+):
+    """
+    Build a 1080×1920 thumbnail.
+    Primary: author photo (top) + dark text panel (bottom).
+    Fallback: blurred video frame full background.
+    Returns path to saved PNG.
+    """
+    import numpy as np
+    from PIL import ImageFilter
+    import textwrap as tw
+    W, H = size
+
+    author_photo_path = fetch_author_photo(author)
+
+    if author_photo_path:
+        # ── LAYOUT A: Author photo top 62%, dark panel bottom 38% ────────────
+        photo_h = int(H * 0.62)
+        panel_h = H - photo_h
+
+        # Load + crop photo to fill the top zone (centre-crop to W×photo_h)
+        photo = Image.open(author_photo_path).convert("RGB")
+        pw, ph = photo.size
+        # Scale so shortest side fits width, preserve aspect ratio
+        scale  = max(W / pw, photo_h / ph)
+        new_w, new_h = int(pw * scale), int(ph * scale)
+        photo  = photo.resize((new_w, new_h), Image.LANCZOS)
+        # Centre crop
+        left = (new_w - W) // 2
+        top  = 0   # show the face (top of image)
+        photo = photo.crop((left, top, left + W, top + photo_h))
+
+        # Slightly darken the photo so it feels cinematic, not washed out
+        ph_arr = np.array(photo, dtype=np.float32) * 0.78
+        photo  = Image.fromarray(ph_arr.clip(0, 255).astype(np.uint8))
+
+        # Soft gradient fade at the BOTTOM of the photo into the dark panel
+        fade_h = int(photo_h * 0.28)
+        fade   = Image.new("RGBA", (W, photo_h), (0, 0, 0, 0))
+        for y in range(photo_h - fade_h, photo_h):
+            t     = (y - (photo_h - fade_h)) / fade_h
+            alpha = int(255 * (t ** 1.6))
+            ImageDraw.Draw(fade).line([(0, y), (W, y)], fill=(0, 0, 0, alpha))
+        photo_rgba = photo.convert("RGBA")
+        photo_rgba = Image.alpha_composite(photo_rgba, fade)
+
+        # Dark bottom panel
+        panel = Image.new("RGB", (W, panel_h), (10, 10, 14))
+
+        # Combine
+        canvas = Image.new("RGBA", (W, H))
+        canvas.paste(photo_rgba, (0, 0))
+        canvas.paste(panel.convert("RGBA"), (0, photo_h))
+        draw = ImageDraw.Draw(canvas)
+
+        text_region_top = photo_h + 14   # text starts just below the seam
+
+    else:
+        # ── LAYOUT B: Blurred video frame full background (fallback) ──────────
+        bg = Image.open(bg_frame_path).convert("RGB").resize((W, H), Image.LANCZOS)
+        bg = bg.filter(ImageFilter.GaussianBlur(radius=18))
+        bg_arr = np.array(bg, dtype=np.float32) * 0.32
+        bg = Image.fromarray(bg_arr.clip(0, 255).astype(np.uint8))
+
+        grad_arr = np.zeros((H, W, 4), dtype=np.uint8)
+        for y in range(H):
+            alpha = int(210 * (y / H) ** 0.55)
+            grad_arr[y, :, 3] = alpha
+        grad   = Image.fromarray(grad_arr, "RGBA")
+        canvas = bg.convert("RGBA")
+        canvas = Image.alpha_composite(canvas, grad)
+        draw   = ImageDraw.Draw(canvas)
+
+        text_region_top = int(H * 0.40)
+
+    # ── Gold accent bar ───────────────────────────────────────────────────────
+    hook_max_w = int(W * 0.88)
+    bar_y = text_region_top + 10
+    bar_w = int(W * 0.52)
+    bar_x = (W - bar_w) // 2
+    draw.rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + 6], fill=(255, 200, 50))
+
+    # ── Hook text (large, bold, white) ────────────────────────────────────────
+    hook_y = bar_y + 20
+    for fs in range(84, 34, -4):
+        f = ImageFont.truetype(bold_font, fs)
+        avg_w = f.getlength("A")
+        ww    = max(6, int(hook_max_w / avg_w))
+        wrapped = tw.fill(hook.upper(), width=ww)
+        bbox = draw.multiline_textbbox((0, 0), wrapped, font=f, spacing=8)
+        if bbox[2] - bbox[0] <= hook_max_w:
+            break
+    hook_bbox = draw.multiline_textbbox((0, 0), wrapped, font=f, spacing=8)
+    hook_h    = hook_bbox[3] - hook_bbox[1]
+    hx = (W - (hook_bbox[2] - hook_bbox[0])) // 2
+    draw.multiline_text((hx+3, hook_y+3), wrapped, font=f,
+                        fill=(0,0,0,180), spacing=8, align="center")
+    draw.multiline_text((hx, hook_y), wrapped, font=f,
+                        fill=(255,255,255), stroke_width=3,
+                        stroke_fill=(0,0,0), spacing=8, align="center")
+
+    # ── Quote excerpt (first 8 words, smaller grey) ───────────────────────────
+    excerpt = " ".join(quote_text.split()[:8])
+    if len(quote_text.split()) > 8:
+        excerpt += "..."
+    ex_y = hook_y + hook_h + 22
+    for fs2 in range(38, 20, -2):
+        f2 = ImageFont.truetype(bold_font, fs2)
+        ww2 = max(8, int(hook_max_w / f2.getlength("A")))
+        ex_wrapped = tw.fill(excerpt.upper(), width=ww2)
+        bbox2 = draw.multiline_textbbox((0, 0), ex_wrapped, font=f2, spacing=7)
+        if bbox2[2] - bbox2[0] <= hook_max_w:
+            break
+    ex_bbox = draw.multiline_textbbox((0, 0), ex_wrapped, font=f2, spacing=7)
+    ex_x = (W - (ex_bbox[2] - ex_bbox[0])) // 2
+    draw.multiline_text((ex_x, ex_y), ex_wrapped, font=f2,
+                        fill=(195,195,195), stroke_width=2,
+                        stroke_fill=(0,0,0), spacing=7, align="center")
+
+    # ── Thin white divider ────────────────────────────────────────────────────
+    div_y = ex_y + (ex_bbox[3] - ex_bbox[1]) + 22
+    div_w = int(W * 0.28)
+    draw.rectangle([(W-div_w)//2, div_y, (W+div_w)//2, div_y+2],
+                   fill=(255,255,255,150))
+
+    # ── Author name (gold italic) ─────────────────────────────────────────────
+    au_text = f"— {author}"
+    au_y    = div_y + 16
+    for fs3 in range(36, 20, -2):
+        f3 = ImageFont.truetype(italic_font, fs3)
+        bbox3 = draw.textbbox((0, 0), au_text, font=f3)
+        if bbox3[2] - bbox3[0] <= hook_max_w:
+            break
+    bbox3 = draw.textbbox((0, 0), au_text, font=f3)
+    au_x  = (W - (bbox3[2] - bbox3[0])) // 2
+    draw.text((au_x, au_y), au_text, font=f3,
+              fill=(255,200,50), stroke_width=2, stroke_fill=(0,0,0))
+
+    out = "/tmp/thumbnail.png"
+    canvas.convert("RGB").save(out, quality=97)
+    print(f"✅ Thumbnail saved: {out}")
+    return out
+
+
+# ─────────────────────────────────────────────
 # 5️⃣  Fetch multiple Pexels video URLs
 # ─────────────────────────────────────────────
 def get_video_urls(keyword="nature", count=5):
@@ -715,21 +924,39 @@ def create_youtube_short(quote_text, author):
     music_file  = random.choice(["music1.mp3", "music2.mp3", "music3.mp3"])
     audio_clip, _ = assemble_audio(tts_paths, durations, pause_ms, music_file)
 
-    # ── 7. Composite and render ───────────────────────────────────────────────
-    final = CompositeVideoClip([clip] + slide_clips + [author_clip])
-    final = final.set_audio(audio_clip)
+    # ── 7. Generate thumbnail from first video frame ─────────────────────────
+    first_frame_path = "/tmp/thumb_bg.png"
+    clip.save_frame(first_frame_path, t=0.5)   # grab frame at 0.5s
+    thumb_path = generate_thumbnail(hook, quote_text, author, first_frame_path,
+                                    size=(W, H))
+
+    # ── 8. Composite main video ───────────────────────────────────────────────
+    main_video = CompositeVideoClip([clip] + slide_clips + [author_clip])
+    main_video = main_video.set_audio(audio_clip)
+
+    # ── 9. Prepend 1-second thumbnail frame ───────────────────────────────────
+    #   This makes YouTube's frame selector trivially easy to use.
+    #   The thumbnail clip is muted (silent) so audio starts with the quote.
+    thumb_clip  = ImageClip(thumb_path).set_duration(1.0)
+    silent_1s   = AudioSegment.silent(duration=1000)
+    tmp_silence = "/tmp/silence_1s.wav"
+    silent_1s.export(tmp_silence, format="wav")
+    silence_clip = AudioFileClip(tmp_silence).set_duration(1.0)
+    thumb_clip   = thumb_clip.set_audio(silence_clip)
+
+    final = concatenate_videoclips([thumb_clip, main_video], method="compose")
 
     out = "/tmp/youtube_short.mp4"
     print("🎞 Rendering video...")
     final.write_videofile(out, fps=24, codec="libx264", audio_codec="aac", threads=2)
     print(f"✅ Video saved: {out}")
-    return out
+    return out, thumb_path
 
 
 # ─────────────────────────────────────────────
 # 🔟 Upload to YouTube
 # ─────────────────────────────────────────────
-def upload_to_youtube(video_path):
+def upload_to_youtube(video_path, thumb_path=None):
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
@@ -741,12 +968,14 @@ def upload_to_youtube(video_path):
         token_uri       = "https://oauth2.googleapis.com/token",
         client_id       = os.environ.get("CLIENT_ID"),
         client_secret   = os.environ.get("CLIENT_SECRET"),
-        scopes          = ["https://www.googleapis.com/auth/youtube.upload"],
+        scopes          = [
+            "https://www.googleapis.com/auth/youtube.upload",
+            "https://www.googleapis.com/auth/youtube",          # needed for thumbnails.set
+        ],
     )
     creds.refresh(google.auth.transport.requests.Request())
 
     youtube = build("youtube", "v3", credentials=creds)
-    today   = datetime.datetime.now().strftime("%Y-%m-%d")
     titles  = [
         "This will hit you hard...",
         "Watch this if you're losing hope",
@@ -764,12 +993,29 @@ def upload_to_youtube(video_path):
         "status": {"privacyStatus": "public"},
     }
 
+    # ── Upload video ──────────────────────────────────────────────────────────
     resp = (
         youtube.videos()
-        .insert(part="snippet,status", body=body, media_body=MediaFileUpload(video_path))
+        .insert(part="snippet,status", body=body,
+                media_body=MediaFileUpload(video_path, chunksize=-1, resumable=True))
         .execute()
     )
-    print("✅ Uploaded! https://youtube.com/watch?v=" + resp["id"])
+    video_id = resp["id"]
+    print(f"✅ Uploaded! https://youtube.com/shorts/{video_id}")
+
+    # ── Set custom thumbnail ──────────────────────────────────────────────────
+    if thumb_path:
+        try:
+            youtube.thumbnails().set(
+                videoId   = video_id,
+                media_body= MediaFileUpload(thumb_path, mimetype="image/png"),
+            ).execute()
+            print(f"🖼  Thumbnail set: {thumb_path}")
+        except Exception as e:
+            # thumbnails.set requires channel to be verified (phone number).
+            # If not verified yet, the video is still live — just without custom thumb.
+            print(f"⚠️  Thumbnail upload skipped: {e}")
+            print("   👉 Verify your channel at youtube.com/verify to enable custom thumbnails.")
 
 
 # ─────────────────────────────────────────────
@@ -779,7 +1025,8 @@ def main():
     quote_text, author = get_quote()
     print(f"💡 Quote : {quote_text}")
     print(f"✍️  Author: {author}")
-    upload_to_youtube(create_youtube_short(quote_text, author))
+    video_path, thumb_path = create_youtube_short(quote_text, author)
+    upload_to_youtube(video_path, thumb_path)
 
 
 if __name__ == "__main__":
