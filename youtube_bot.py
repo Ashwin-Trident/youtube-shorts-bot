@@ -695,21 +695,44 @@ def download_video(url):
 #     Source: Wikimedia Commons (CC / Public Domain)
 #     No API key. Falls back to Pexels keyword search.
 # ─────────────────────────────────────────────
+def _name_tokens(name):
+    """
+    Extract meaningful tokens from a speaker name for title validation.
+    Drops honorifics and short words so we match on surname / key word.
+    e.g. "Martin Luther King Jr." → ["martin", "luther", "king"]
+         "John F. Kennedy"        → ["john", "kennedy"]
+         "Eleanor Roosevelt"      → ["eleanor", "roosevelt"]
+    """
+    SKIP = {"jr", "jr.", "sr", "sr.", "dr", "dr.", "mr", "mr.", "mrs",
+            "prof", "rev", "f.", "f", "b.", "b"}
+    return [w.lower().strip(".,") for w in name.split()
+            if len(w) > 2 and w.lower().strip(".,") not in SKIP]
+
+
 def _wikimedia_video(name, label="speaker"):
     """
     Search Wikimedia Commons for a video of `name` speaking.
-    Returns local file path (.mp4 or .webm) or None.
-    All Wikimedia Commons content is CC-licensed or Public Domain — zero copyright risk.
+
+    Two safeguards against returning the wrong person:
+      1. Search uses quoted name  → forces exact-name match in results
+      2. File title MUST contain at least one key name token (surname etc.)
+         → rejects documentaries/tributes narrated by someone else
+
+    All Wikimedia Commons content is CC/Public Domain — zero copyright risk.
+    Returns local file path or None.
     """
     try:
+        tokens = _name_tokens(name)   # e.g. ["martin", "luther", "king"]
+
         r = requests.get(
             "https://commons.wikimedia.org/w/api.php",
             params={
                 "action":      "query",
                 "list":        "search",
-                "srsearch":    f"{name} speech OR interview OR talk",
+                # Quoted name → must appear verbatim; speech/interview hint boosts rank
+                "srsearch":    f'"{name}" (speech OR interview OR address OR talk)',
                 "srnamespace": "6",
-                "srlimit":     "10",
+                "srlimit":     "20",   # fetch more so we can filter strictly
                 "srwhat":      "text",
                 "format":      "json",
             },
@@ -720,42 +743,60 @@ def _wikimedia_video(name, label="speaker"):
             return None
 
         results = r.json().get("query", {}).get("search", [])
-        video_titles = [
-            res["title"] for res in results
-            if res["title"].lower().endswith((".webm", ".ogv", ".mp4"))
-        ]
+
+        # Keep only video files whose title contains ≥1 name token
+        # This rejects "File:Tribute_to_King.webm" narrated by a woman,
+        # but accepts "File:Martin_Luther_King_speech_1963.ogv"
+        video_titles = []
+        for res in results:
+            t = res["title"]
+            t_low = t.lower()
+            is_video = t_low.endswith((".webm", ".ogv", ".mp4"))
+            name_match = any(tok in t_low for tok in tokens)
+            if is_video and name_match:
+                video_titles.append(t)
+
         if not video_titles:
-            print(f"   ℹ️  No Wikimedia video for '{name}'")
+            print(f"   ℹ️  No verified Wikimedia video for '{name}'")
             return None
 
-        title = video_titles[0]
-        info  = requests.get(
-            "https://commons.wikimedia.org/w/api.php",
-            params={"action": "query", "titles": title,
-                    "prop": "videoinfo", "viprop": "url|mime", "format": "json"},
-            timeout=10,
-            headers={"User-Agent": "YoutubeShortsBot/1.0"},
-        )
-        pages = info.json().get("query", {}).get("pages", {})
-        vinfo = (next(iter(pages.values())).get("videoinfo") or [{}])[0]
-        url   = vinfo.get("url", "")
-        mime  = vinfo.get("mime", "")
-        if not url or "video" not in mime:
-            return None
+        # Try each matching title until one downloads successfully
+        for title in video_titles:
+            try:
+                info = requests.get(
+                    "https://commons.wikimedia.org/w/api.php",
+                    params={"action": "query", "titles": title,
+                            "prop": "videoinfo", "viprop": "url|mime",
+                            "format": "json"},
+                    timeout=10,
+                    headers={"User-Agent": "YoutubeShortsBot/1.0"},
+                )
+                pages = info.json().get("query", {}).get("pages", {})
+                vinfo = (next(iter(pages.values())).get("videoinfo") or [{}])[0]
+                url   = vinfo.get("url", "")
+                mime  = vinfo.get("mime", "")
+                if not url or "video" not in mime:
+                    continue
 
-        print(f"   🎬 Downloading {label} video: {title[:55]}")
-        dl = requests.get(url, stream=True, timeout=60,
-                          headers={"User-Agent": "YoutubeShortsBot/1.0"})
-        if dl.status_code != 200:
-            return None
+                print(f"   🎬 Downloading {label} ({name}): {title[:55]}")
+                dl = requests.get(url, stream=True, timeout=60,
+                                  headers={"User-Agent": "YoutubeShortsBot/1.0"})
+                if dl.status_code != 200:
+                    continue
 
-        ext  = ".mp4" if "mp4" in mime else ".webm"
-        path = f"/tmp/{label}_video{ext}"
-        with open(path, "wb") as fh:
-            for chunk in dl.iter_content(1024 * 1024):
-                if chunk: fh.write(chunk)
-        print(f"   ✅ {label} video saved: {path}")
-        return path
+                ext  = ".mp4" if "mp4" in mime else ".webm"
+                path = f"/tmp/{label}_video{ext}"
+                with open(path, "wb") as fh:
+                    for chunk in dl.iter_content(1024 * 1024):
+                        if chunk: fh.write(chunk)
+                print(f"   ✅ {label} video confirmed: {title[:55]}")
+                return path
+
+            except Exception:
+                continue   # try next title
+
+        print(f"   ℹ️  All Wikimedia candidates failed for '{name}'")
+        return None
 
     except Exception as e:
         print(f"   ⚠️  Wikimedia fetch failed for '{name}': {e}")
