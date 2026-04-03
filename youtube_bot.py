@@ -608,7 +608,10 @@ def generate_thumbnail(
 # 5️⃣  Fetch multiple Pexels video URLs
 # ─────────────────────────────────────────────
 def get_video_urls(keyword="nature", count=5):
-    """Return up to `count` unique mp4 URLs from Pexels."""
+    """
+    Return up to `count` HD mp4 URLs from Pexels.
+    Prefers 1920px-wide portrait files; falls back to any MP4 if HD not found.
+    """
     key = os.environ.get("PEXELS_API_KEY")
     if not key:
         print("❌ Missing PEXELS_API_KEY")
@@ -618,7 +621,8 @@ def get_video_urls(keyword="nature", count=5):
         r = requests.get(
             "https://api.pexels.com/videos/search",
             headers={"Authorization": key},
-            params={"query": keyword, "per_page": min(count * 2, 20), "orientation": "portrait"},
+            params={"query": keyword, "per_page": min(count * 2, 20),
+                    "orientation": "portrait", "size": "large"},   # large = HD
             timeout=10,
         )
         if r.status_code != 200:
@@ -626,9 +630,19 @@ def get_video_urls(keyword="nature", count=5):
         videos = r.json().get("videos", [])
         random.shuffle(videos)
         for video in videos:
-            for f in video["video_files"]:
-                if f["file_type"] == "video/mp4":
-                    urls.append(f["link"])
+            files = video.get("video_files", [])
+            # Sort: prefer portrait HD (width<=1080, height>=1920) then any MP4
+            def hd_score(vf):
+                w, h = vf.get("width", 0), vf.get("height", 0)
+                is_mp4 = vf.get("file_type") == "video/mp4"
+                is_hd  = h >= 1920 or w >= 1080
+                return (0 if is_mp4 else 1, 0 if is_hd else 1, -(h or 0))
+            files_sorted = sorted(files, key=hd_score)
+            for vf in files_sorted:
+                if vf.get("file_type") == "video/mp4":
+                    w, h = vf.get("width", 0), vf.get("height", 0)
+                    urls.append(vf["link"])
+                    print(f"   📹 Pexels clip {len(urls)}: {w}×{h}")
                     break
             if len(urls) >= count:
                 break
@@ -654,18 +668,117 @@ def download_video(url):
     return tmp.name
 
 
+
+
+# ─────────────────────────────────────────────
+# 6a  Fetch copyright-free author video
+#     Source: Wikimedia Commons (CC / Public Domain)
+#     No API key. Falls back to Pexels keyword search.
+# ─────────────────────────────────────────────
+def fetch_author_video(author_name):
+    """
+    Search Wikimedia Commons for a video of the author.
+    Returns local .mp4 path, or None if not found.
+
+    All Wikimedia Commons media is freely licensed (CC or Public Domain)
+    — zero copyright risk.
+    """
+    try:
+        # Step 1: Search Commons for video files matching the author
+        search_resp = requests.get(
+            "https://commons.wikimedia.org/w/api.php",
+            params={
+                "action":      "query",
+                "list":        "search",
+                "srsearch":    f"{author_name} speech OR interview OR talk",
+                "srnamespace": "6",          # File namespace only
+                "srlimit":     "10",
+                "srwhat":      "text",
+                "format":      "json",
+            },
+            timeout=10,
+            headers={"User-Agent": "YoutubeShortsBot/1.0"},
+        )
+        if search_resp.status_code != 200:
+            return None
+
+        results = search_resp.json().get("query", {}).get("search", [])
+        # Keep only video files
+        video_titles = [
+            r["title"] for r in results
+            if r["title"].lower().endswith((".webm", ".ogv", ".mp4"))
+        ]
+        if not video_titles:
+            print(f"   ℹ️  No Wikimedia video found for '{author_name}'")
+            return None
+
+        # Step 2: Get the direct download URL for the first match
+        title = video_titles[0]
+        info_resp = requests.get(
+            "https://commons.wikimedia.org/w/api.php",
+            params={
+                "action":  "query",
+                "titles":  title,
+                "prop":    "videoinfo",
+                "viprop":  "url|size|mime",
+                "format":  "json",
+            },
+            timeout=10,
+            headers={"User-Agent": "YoutubeShortsBot/1.0"},
+        )
+        pages = info_resp.json().get("query", {}).get("pages", {})
+        page  = next(iter(pages.values()))
+        vinfo = (page.get("videoinfo") or [{}])[0]
+        url   = vinfo.get("url", "")
+        mime  = vinfo.get("mime", "")
+
+        if not url or "video" not in mime:
+            return None
+
+        # Step 3: Download
+        print(f"   🎬 Downloading Wikimedia video: {title[:60]}")
+        dl = requests.get(url, stream=True, timeout=60,
+                          headers={"User-Agent": "YoutubeShortsBot/1.0"})
+        if dl.status_code != 200:
+            return None
+
+        ext  = ".mp4" if "mp4" in mime else ".webm"
+        path = f"/tmp/author_video{ext}"
+        with open(path, "wb") as fh:
+            for chunk in dl.iter_content(1024 * 1024):
+                if chunk:
+                    fh.write(chunk)
+        print(f"   ✅ Author video saved: {path}")
+        return path
+
+    except Exception as e:
+        print(f"   ⚠️  fetch_author_video failed: {e}")
+        return None
+
 # ─────────────────────────────────────────────
 # 6b️⃣  Build a 15-second composite from multiple clips
 # ─────────────────────────────────────────────
-def build_15s_clip(keyword, target=15.0):
+def build_15s_clip(keyword, target=15.0, author=None):
     """
-    Fetch several portrait videos, trim each to a short segment,
-    concatenate until we reach `target` seconds, then hard-cut to exactly
-    `target` seconds.  Returns a single moviepy clip.
+    Build the background clip:
+    1. Try a copyright-free Wikimedia video of the author speaking.
+    2. Fall back to HD Pexels clips on the mood keyword.
+    Concatenates segments until `target` seconds is reached.
+    Returns a single moviepy clip.
     """
-
     FALLBACK = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
-    urls = get_video_urls(keyword, count=6)
+
+    # Try author video from Wikimedia Commons first
+    author_video = fetch_author_video(author) if author else None
+    if author_video:
+        urls = [author_video]   # use author clip; Pexels clips will pad if needed
+        print(f"   🎬 Using author video as primary background")
+    else:
+        urls = []
+
+    # Fill remaining time with HD Pexels clips
+    pexels_urls = get_video_urls(keyword, count=6)
+    urls += pexels_urls
     if not urls:
         urls = [FALLBACK]
 
@@ -937,7 +1050,7 @@ def create_youtube_short(quote_text, author):
     print(f"   Author appears at: {author_start:.2f}s")
 
     # ── 4. Build background video to match total_dur ──────────────────────────
-    clip = build_15s_clip(keyword, target=total_dur)
+    clip = build_15s_clip(keyword, target=total_dur, author=author)
     W, H = clip.w, clip.h
     # If audio is longer than video, loop/extend video
     if clip.duration < total_dur:
@@ -991,7 +1104,7 @@ def create_youtube_short(quote_text, author):
 # ─────────────────────────────────────────────
 # 🔟 Upload to YouTube
 # ─────────────────────────────────────────────
-def upload_to_youtube(video_path, thumb_path=None):
+def upload_to_youtube(video_path, thumb_path=None, author=''):
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
@@ -1018,11 +1131,21 @@ def upload_to_youtube(video_path, thumb_path=None):
         "Don't skip this video",
         "One day you'll understand this",
     ]
+    # Build author hashtag: "Mark Twain" -> "#MarkTwain"
+    author_tag     = "#" + author.replace(" ", "")
+    author_tag_low = author.replace(" ", "").lower()
     body = {
         "snippet": {
             "title":       random.choice(titles),
-            "description": "#shorts #motivation #mindset #success #selfimprovement",
-            "tags":        ["motivation", "shorts", "daily motivation"],
+            "description": (
+                f"{author_tag} #shorts #motivation #mindset "
+                "#success #selfimprovement #quotes #dailymotivation"
+            ),
+            "tags": [
+                "motivation", "shorts", "daily motivation",
+                "quotes", author.lower(), author_tag_low,
+                "inspirational quotes", "mindset",
+            ],
             "categoryId":  "22",
         },
         "status": {"privacyStatus": "public"},
@@ -1046,7 +1169,7 @@ def main():
     print(f"💡 Quote : {quote_text}")
     print(f"✍️  Author: {author}")
     video_path, thumb_path = create_youtube_short(quote_text, author)
-    upload_to_youtube(video_path, thumb_path)
+    upload_to_youtube(video_path, thumb_path, author=author)
 
 
 if __name__ == "__main__":
