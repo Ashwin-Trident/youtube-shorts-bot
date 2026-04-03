@@ -790,6 +790,46 @@ def fetch_author_video(author_name, gender="male"):
     print(f"   ℹ️  No speaker video found — will use Pexels mood clips")
     return None
 
+
+# ─────────────────────────────────────────────
+# Force any clip to 9:16 portrait (1080×1920)
+# Landscape clips are scaled then centre-cropped.
+# Portrait clips are just resized to exact dims.
+# ─────────────────────────────────────────────
+SHORTS_W, SHORTS_H = 1080, 1920   # target dimensions — never changes
+
+def _to_portrait(clip):
+    """
+    Convert any clip to 1080×1920 (9:16) portrait by:
+      - If landscape (w > h): scale so height = 1920, then crop width to 1080
+      - If portrait already : resize to exactly 1080×1920
+    Returns the converted clip.
+    """
+    from moviepy.editor import vfx
+    cw, ch = clip.w, clip.h
+
+    if cw == SHORTS_W and ch == SHORTS_H:
+        return clip                            # already correct
+
+    if cw > ch:
+        # Landscape → scale up so height fills 1920, then crop sides
+        scale   = SHORTS_H / ch
+        new_w   = int(cw * scale)
+        clip    = clip.resize((new_w, SHORTS_H))
+        x_off   = (new_w - SHORTS_W) // 2
+        clip    = clip.crop(x1=x_off, y1=0, x2=x_off + SHORTS_W, y2=SHORTS_H)
+    else:
+        # Portrait / square → resize to fill, crop if needed
+        scale   = max(SHORTS_W / cw, SHORTS_H / ch)
+        new_w   = int(cw * scale)
+        new_h   = int(ch * scale)
+        clip    = clip.resize((new_w, new_h))
+        x_off   = (new_w - SHORTS_W) // 2
+        y_off   = (new_h - SHORTS_H) // 2
+        clip    = clip.crop(x1=x_off, y1=y_off,
+                            x2=x_off + SHORTS_W, y2=y_off + SHORTS_H)
+    return clip
+
 # ─────────────────────────────────────────────
 # 6b️⃣  Build a 15-second composite from multiple clips
 # ─────────────────────────────────────────────
@@ -823,7 +863,8 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
             cursor  = 0.0
             while cursor + 0.5 < spk_raw.duration:
                 end = min(cursor + SEG_DUR, spk_raw.duration)
-                speaker_segs.append(("speaker", spk_raw.subclip(cursor, end)))
+                seg = _to_portrait(spk_raw.subclip(cursor, end))
+                speaker_segs.append(("speaker", seg))
                 cursor = end
             print(f"   🎬 Speaker video split into {len(speaker_segs)} segments")
         except Exception as e:
@@ -837,7 +878,7 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
             path    = download_video(url)
             raw     = VideoFileClip(path)
             seg_dur = min(raw.duration, SEG_DUR)
-            mood_segs.append(("mood", raw.subclip(0, seg_dur)))
+            mood_segs.append(("mood", _to_portrait(raw.subclip(0, seg_dur))))
         except Exception as e:
             print(f"   ⚠️  Pexels clip failed: {e}")
 
@@ -865,8 +906,8 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
         else:
             break
 
-    # ── Resize all to first clip's dimensions, concat to `target` ─────────
-    target_size = None
+    # ── All clips already portrait via _to_portrait; just concat ────────────
+    target_size = (SHORTS_W, SHORTS_H)
     clips       = []
     total       = 0.0
 
@@ -876,12 +917,6 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
         remaining = target - total
         if seg.duration > remaining:
             seg = seg.subclip(0, remaining)
-
-        if target_size is None:
-            target_size = (seg.w, seg.h)
-        elif (seg.w, seg.h) != target_size:
-            seg = seg.resize(target_size)
-
         clips.append(seg)
         total += seg.duration
         print(f"   ✂️  [{label:7s}] {seg.duration:.1f}s  (total {total:.1f}s)")
@@ -1210,12 +1245,14 @@ def upload_to_youtube(video_path, thumb_path=None, author=''):
     creds.refresh(google.auth.transport.requests.Request())
 
     youtube = build("youtube", "v3", credentials=creds)
+    # YouTube requires #Shorts in the TITLE (not just description)
+    # to reliably classify the video as a Short in all surfaces.
     titles  = [
-        "This will hit you hard...",
-        "Watch this if you're losing hope",
-        "This changed my mindset forever",
-        "Don't skip this video",
-        "One day you'll understand this",
+        "This will hit you hard... #Shorts",
+        "Watch this if you're losing hope #Shorts",
+        "This changed my mindset forever #Shorts",
+        "Don't skip this video #Shorts",
+        "One day you'll understand this #Shorts",
     ]
     # Build author hashtag: "Mark Twain" -> "#MarkTwain"
     author_tag     = "#" + author.replace(" ", "")
