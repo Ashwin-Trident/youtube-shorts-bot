@@ -83,6 +83,26 @@ VOICE_COQUI = {
     "male":   {"model": "tts_models/en/ljspeech/glow-tts",      "speaker_idx": None},
 }
 
+# ── Gender-matched fallback speakers (Wikimedia Commons — copyright-free) ────
+# Used when no author-specific video is found.
+# All are historical public figures with CC/PD footage on Wikimedia Commons.
+FALLBACK_SPEAKERS = {
+    "male": [
+        "Martin Luther King Jr.",    # famous "I Have a Dream" speech footage
+        "Winston Churchill",         # WWII speeches, PD
+        "John F. Kennedy",           # Moon speech, Inaugural address
+        "Theodore Roosevelt",        # early 1900s footage, PD
+        "Franklin D. Roosevelt",     # fireside chats footage
+    ],
+    "female": [
+        "Eleanor Roosevelt",         # UN speeches, PD footage
+        "Marie Curie",               # rare footage, PD
+        "Helen Keller",              # interview footage, PD
+        "Emmeline Pankhurst",        # suffragette speeches, PD
+        "Harriet Tubman",            # historical footage, PD
+    ],
+}
+
 
 # ─────────────────────────────────────────────
 # 1️⃣  Get a random quote
@@ -675,23 +695,20 @@ def download_video(url):
 #     Source: Wikimedia Commons (CC / Public Domain)
 #     No API key. Falls back to Pexels keyword search.
 # ─────────────────────────────────────────────
-def fetch_author_video(author_name):
+def _wikimedia_video(name, label="speaker"):
     """
-    Search Wikimedia Commons for a video of the author.
-    Returns local .mp4 path, or None if not found.
-
-    All Wikimedia Commons media is freely licensed (CC or Public Domain)
-    — zero copyright risk.
+    Search Wikimedia Commons for a video of `name` speaking.
+    Returns local file path (.mp4 or .webm) or None.
+    All Wikimedia Commons content is CC-licensed or Public Domain — zero copyright risk.
     """
     try:
-        # Step 1: Search Commons for video files matching the author
-        search_resp = requests.get(
+        r = requests.get(
             "https://commons.wikimedia.org/w/api.php",
             params={
                 "action":      "query",
                 "list":        "search",
-                "srsearch":    f"{author_name} speech OR interview OR talk",
-                "srnamespace": "6",          # File namespace only
+                "srsearch":    f"{name} speech OR interview OR talk",
+                "srnamespace": "6",
                 "srlimit":     "10",
                 "srwhat":      "text",
                 "format":      "json",
@@ -699,118 +716,187 @@ def fetch_author_video(author_name):
             timeout=10,
             headers={"User-Agent": "YoutubeShortsBot/1.0"},
         )
-        if search_resp.status_code != 200:
+        if r.status_code != 200:
             return None
 
-        results = search_resp.json().get("query", {}).get("search", [])
-        # Keep only video files
+        results = r.json().get("query", {}).get("search", [])
         video_titles = [
-            r["title"] for r in results
-            if r["title"].lower().endswith((".webm", ".ogv", ".mp4"))
+            res["title"] for res in results
+            if res["title"].lower().endswith((".webm", ".ogv", ".mp4"))
         ]
         if not video_titles:
-            print(f"   ℹ️  No Wikimedia video found for '{author_name}'")
+            print(f"   ℹ️  No Wikimedia video for '{name}'")
             return None
 
-        # Step 2: Get the direct download URL for the first match
         title = video_titles[0]
-        info_resp = requests.get(
+        info  = requests.get(
             "https://commons.wikimedia.org/w/api.php",
-            params={
-                "action":  "query",
-                "titles":  title,
-                "prop":    "videoinfo",
-                "viprop":  "url|size|mime",
-                "format":  "json",
-            },
+            params={"action": "query", "titles": title,
+                    "prop": "videoinfo", "viprop": "url|mime", "format": "json"},
             timeout=10,
             headers={"User-Agent": "YoutubeShortsBot/1.0"},
         )
-        pages = info_resp.json().get("query", {}).get("pages", {})
-        page  = next(iter(pages.values()))
-        vinfo = (page.get("videoinfo") or [{}])[0]
+        pages = info.json().get("query", {}).get("pages", {})
+        vinfo = (next(iter(pages.values())).get("videoinfo") or [{}])[0]
         url   = vinfo.get("url", "")
         mime  = vinfo.get("mime", "")
-
         if not url or "video" not in mime:
             return None
 
-        # Step 3: Download
-        print(f"   🎬 Downloading Wikimedia video: {title[:60]}")
+        print(f"   🎬 Downloading {label} video: {title[:55]}")
         dl = requests.get(url, stream=True, timeout=60,
                           headers={"User-Agent": "YoutubeShortsBot/1.0"})
         if dl.status_code != 200:
             return None
 
         ext  = ".mp4" if "mp4" in mime else ".webm"
-        path = f"/tmp/author_video{ext}"
+        path = f"/tmp/{label}_video{ext}"
         with open(path, "wb") as fh:
             for chunk in dl.iter_content(1024 * 1024):
-                if chunk:
-                    fh.write(chunk)
-        print(f"   ✅ Author video saved: {path}")
+                if chunk: fh.write(chunk)
+        print(f"   ✅ {label} video saved: {path}")
         return path
 
     except Exception as e:
-        print(f"   ⚠️  fetch_author_video failed: {e}")
+        print(f"   ⚠️  Wikimedia fetch failed for '{name}': {e}")
         return None
+
+
+def fetch_author_video(author_name, gender="male"):
+    """
+    Try to find a speaker video in this order:
+      1. Wikimedia video of the actual author
+      2. Wikimedia video of a famous gender-matched fallback speaker
+         (male voice → male speaker, female voice → female speaker)
+      3. None → caller falls back to Pexels mood clips
+
+    All sources are Wikimedia Commons — CC/Public Domain, zero copyright risk.
+    """
+    # 1. Author's own video
+    path = _wikimedia_video(author_name, label="author")
+    if path:
+        return path
+
+    # 2. Gender-matched fallback speaker
+    candidates = FALLBACK_SPEAKERS.get(gender, FALLBACK_SPEAKERS["male"])
+    random.shuffle(candidates)          # vary each video for channel diversity
+    for speaker in candidates:
+        print(f"   🔄 Trying fallback {gender} speaker: {speaker}")
+        path = _wikimedia_video(speaker, label="fallback")
+        if path:
+            print(f"   ✅ Using fallback speaker: {speaker}")
+            return path
+
+    print(f"   ℹ️  No speaker video found — will use Pexels mood clips")
+    return None
 
 # ─────────────────────────────────────────────
 # 6b️⃣  Build a 15-second composite from multiple clips
 # ─────────────────────────────────────────────
-def build_15s_clip(keyword, target=15.0, author=None):
+def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     """
-    Build the background clip:
-    1. Try a copyright-free Wikimedia video of the author speaking.
-    2. Fall back to HD Pexels clips on the mood keyword.
-    Concatenates segments until `target` seconds is reached.
-    Returns a single moviepy clip.
+    Build the background by MIXING speaker clips + keyword mood clips:
+
+    1. Author Wikimedia video  (if found)      → speaker clips
+       OR gender-matched fallback speaker       → speaker clips
+    2. HD Pexels keyword clips (dark/rain/etc) → mood clips
+
+    Interleaved pattern:  [speaker 3s][mood 3s][speaker 3s][mood 3s]...
+    If no speaker found:  all mood clips.
+    If no mood clips:     all speaker clips.
+    All sources copyright-free.
     """
     FALLBACK = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
+    SEG_DUR  = 3.0    # seconds per mini-segment when mixing
 
-    # Try author video from Wikimedia Commons first
-    author_video = fetch_author_video(author) if author else None
-    if author_video:
-        urls = [author_video]   # use author clip; Pexels clips will pad if needed
-        print(f"   🎬 Using author video as primary background")
-    else:
-        urls = []
+    # ── Fetch speaker video (author or gender fallback) ────────────────────
+    speaker_path = fetch_author_video(author, gender=gender) if author else None
 
-    # Fill remaining time with HD Pexels clips
+    # ── Fetch HD Pexels mood clips ─────────────────────────────────────────
     pexels_urls = get_video_urls(keyword, count=6)
-    urls += pexels_urls
-    if not urls:
-        urls = [FALLBACK]
 
-    clips     = []
-    total     = 0.0
-    remaining = target
-    target_size = None   # set from first successful clip
+    # ── Load speaker clip once, chop into SEG_DUR chunks ──────────────────
+    speaker_segs = []
+    if speaker_path:
+        try:
+            spk_raw = VideoFileClip(speaker_path)
+            cursor  = 0.0
+            while cursor + 0.5 < spk_raw.duration:
+                end = min(cursor + SEG_DUR, spk_raw.duration)
+                speaker_segs.append(("speaker", spk_raw.subclip(cursor, end)))
+                cursor = end
+            print(f"   🎬 Speaker video split into {len(speaker_segs)} segments")
+        except Exception as e:
+            print(f"   ⚠️  Speaker video load failed: {e}")
+            speaker_segs = []
 
-    for url in urls:
-        if remaining <= 0:
-            break
+    # ── Load Pexels mood clips ─────────────────────────────────────────────
+    mood_segs = []
+    for url in pexels_urls:
         try:
             path    = download_video(url)
             raw     = VideoFileClip(path)
-            seg_dur = min(raw.duration, remaining, 6.0)   # each segment ≤ 6 s
-            seg     = raw.subclip(0, seg_dur)
-
-            # Lock all clips to the first clip's dimensions
-            if target_size is None:
-                target_size = (raw.w, raw.h)
-            elif (seg.w, seg.h) != target_size:
-                seg = seg.resize(target_size)   # ANTIALIAS patch above makes this safe
-
-            clips.append(seg)
-            total    += seg_dur
-            remaining = target - total
-            print(f"   ✂️  Added {seg_dur:.1f}s clip  (total so far: {total:.1f}s)")
+            seg_dur = min(raw.duration, SEG_DUR)
+            mood_segs.append(("mood", raw.subclip(0, seg_dur)))
         except Exception as e:
-            print(f"   ⚠️  Skipping clip: {e}")
+            print(f"   ⚠️  Pexels clip failed: {e}")
+
+    if not mood_segs and not speaker_segs:
+        try:
+            path = download_video(FALLBACK)
+            mood_segs.append(("mood", VideoFileClip(path)))
+        except Exception:
+            raise RuntimeError("No video clips could be loaded.")
+
+    # ── Interleave: speaker → mood → speaker → mood … ─────────────────────
+    #    If one list runs out, continue with the other.
+    interleaved = []
+    si, mi = 0, 0
+    use_speaker_next = bool(speaker_segs)   # start with speaker if available
+    while si < len(speaker_segs) or mi < len(mood_segs):
+        if use_speaker_next and si < len(speaker_segs):
+            interleaved.append(speaker_segs[si]); si += 1
+            use_speaker_next = False
+        elif mi < len(mood_segs):
+            interleaved.append(mood_segs[mi]); mi += 1
+            use_speaker_next = True
+        elif si < len(speaker_segs):
+            interleaved.append(speaker_segs[si]); si += 1
+        else:
+            break
+
+    # ── Resize all to first clip's dimensions, concat to `target` ─────────
+    target_size = None
+    clips       = []
+    total       = 0.0
+
+    for label, seg in interleaved:
+        if total >= target:
+            break
+        remaining = target - total
+        if seg.duration > remaining:
+            seg = seg.subclip(0, remaining)
+
+        if target_size is None:
+            target_size = (seg.w, seg.h)
+        elif (seg.w, seg.h) != target_size:
+            seg = seg.resize(target_size)
+
+        clips.append(seg)
+        total += seg.duration
+        print(f"   ✂️  [{label:7s}] {seg.duration:.1f}s  (total {total:.1f}s)")
 
     if not clips:
-        raise RuntimeError("No video clips could be loaded.")
+        raise RuntimeError("No video clips assembled.")
+
+    # pad with last clip if still short
+    while total < target - 0.1 and clips:
+        remaining = target - total
+        pad = clips[-1].subclip(0, min(clips[-1].duration, remaining))
+        if pad.duration < 0.1:
+            break
+        clips.append(pad)
+        total += pad.duration
 
     combined = concatenate_videoclips(clips, method="compose")
 
@@ -978,7 +1064,7 @@ def generate_audio_segments(segments, author):
     durs.append(author_dur)
     print(f"   🔊 Author: {author_dur:.2f}s  \"{author}\"")
 
-    return paths, durs, PAUSE_MS
+    return paths, durs, PAUSE_MS, gender
 
 
 # ─────────────────────────────────────────────
@@ -1028,7 +1114,7 @@ def create_youtube_short(quote_text, author):
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     # ── 2. Generate per-segment TTS → real durations ─────────────────────────
-    tts_paths, durations, pause_ms = generate_audio_segments(segments, author)
+    tts_paths, durations, pause_ms, voice_gender = generate_audio_segments(segments, author)
     pause_s = pause_ms / 1000.0
 
     # ── 3. Calculate exact start time for each segment slide ─────────────────
@@ -1050,7 +1136,7 @@ def create_youtube_short(quote_text, author):
     print(f"   Author appears at: {author_start:.2f}s")
 
     # ── 4. Build background video to match total_dur ──────────────────────────
-    clip = build_15s_clip(keyword, target=total_dur, author=author)
+    clip = build_15s_clip(keyword, target=total_dur, author=author, gender=voice_gender)
     W, H = clip.w, clip.h
     # If audio is longer than video, loop/extend video
     if clip.duration < total_dur:
