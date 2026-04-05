@@ -893,12 +893,49 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     # ── Fetch speaker video (author or gender fallback) ────────────────────
     speaker_path = fetch_author_video(author, gender=gender) if author else None
 
+    # ── If no Wikimedia speaker found, use Pexels "people speaking" clips ──
+    # These are generic talking/speaking stock videos — match gender keyword.
+    # Mixed in as speaker_segs so they interleave with mood clips.
+    if not speaker_path:
+        speaking_keywords = {
+            "male":   ["man giving speech", "man talking", "male speaker podium"],
+            "female": ["woman giving speech", "woman talking", "female speaker podium"],
+        }
+        kw_list = speaking_keywords.get(gender, speaking_keywords["male"])
+        speaking_urls = []
+        for kw in kw_list:
+            speaking_urls += get_video_urls(kw, count=2)
+            if len(speaking_urls) >= 4:
+                break
+        if speaking_urls:
+            print(f"   🎤 No Wikimedia video — using Pexels '{gender} speaking' clips")
+            speaker_path = "__pexels_speaking__"   # sentinel: use speaking_urls below
+        else:
+            print(f"   ℹ️  No speaking clips found — mood clips only")
+    else:
+        speaking_urls = []
+
     # ── Fetch HD Pexels mood clips ─────────────────────────────────────────
     pexels_urls = get_video_urls(keyword, count=6)
 
-    # ── Load speaker clip once, chop into SEG_DUR chunks ──────────────────
+    # ── Load speaker clips (Wikimedia file OR Pexels speaking clips) ────────
     speaker_segs = []
-    if speaker_path:
+    if speaker_path == "__pexels_speaking__":
+        # Load each Pexels speaking clip and chop into segments
+        for url in speaking_urls:
+            try:
+                path    = download_video(url)
+                raw     = VideoFileClip(path)
+                cursor  = 0.0
+                while cursor + 0.5 < raw.duration:
+                    end = min(cursor + SEG_DUR, raw.duration)
+                    seg = _to_portrait(raw.subclip(cursor, end))
+                    speaker_segs.append(("speaker", seg))
+                    cursor = end
+            except Exception as e:
+                print(f"   ⚠️  Speaking clip failed: {e}")
+        print(f"   🎤 Loaded {len(speaker_segs)} Pexels speaking segments")
+    elif speaker_path:
         try:
             spk_raw = VideoFileClip(speaker_path)
             cursor  = 0.0
