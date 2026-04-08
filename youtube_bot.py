@@ -135,7 +135,8 @@ def get_hook():
         "Most people do not know this about.",
         "THIS WILL HIT YOU HARD.",
         "YOU NEEDED THIS TODAY.",
-        "YOU ARE TRYING YOUR BEST."
+        "YOU ARE TRYING YOUR BEST.",
+        "Why you feel stuck in life"
     ]
     return random.choice(hooks)
 
