@@ -135,8 +135,7 @@ def get_hook():
         "Most people do not know this about.",
         "THIS WILL HIT YOU HARD.",
         "YOU NEEDED THIS TODAY.",
-        "YOU ARE TRYING YOUR BEST.",
-        "Why you feel stuck in life"
+        "YOU ARE TRYING YOUR BEST."
     ]
     return random.choice(hooks)
 
@@ -1217,10 +1216,210 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
 #     Video duration = total TTS audio duration
 #     Each slide appears exactly when its audio plays
 # ─────────────────────────────────────────────
+def _quote_to_keyword(quote_text):
+    """
+    Extract a Pexels-friendly visual keyword from the quote itself.
+
+    Strategy:
+      1. Strip common stop-words
+      2. Score remaining words by emotional/visual weight using a theme map
+      3. If a strong theme word is found, return its mapped Pexels phrase
+      4. Otherwise fall back to the highest-frequency content word
+
+    Examples:
+      "The greatest loss is what dies inside us while we live."
+        → "loss" → "loneliness dark"
+      "It is never too late to be what you might have been."
+        → "late" → "sunset alone"
+      "Life is what happens when you're busy making other plans."
+        → "life" → "life journey"
+    """
+    import re
+    # Theme map: quote word → Pexels search phrase
+    THEME_MAP = {
+        # loss / pain / struggle
+        "loss":       "loneliness dark",
+        "lost":       "lost alone dark",
+        "pain":       "pain dark rain",
+        "suffer":     "dark storm alone",
+        "suffering":  "dark storm alone",
+        "grief":      "grief sadness rain",
+        "death":      "dark cemetery alone",
+        "die":        "dark cemetery alone",
+        "dies":       "dark cemetery alone",
+        "fear":       "dark shadows fear",
+        "failure":    "failure rain dark",
+        "fail":       "failure rain dark",
+        # hope / strength / rise
+        "hope":       "hope sunrise light",
+        "courage":    "courage mountain climb",
+        "strength":   "strength mountain sunrise",
+        "rise":       "sunrise mountain rise",
+        "overcome":   "overcoming mountain sunrise",
+        "persevere":  "perseverance mountain",
+        "dream":      "dream stars night sky",
+        "dreams":     "dream stars night sky",
+        "believe":    "believe stars sky",
+        # time / change / life
+        "time":       "time clock hourglass",
+        "late":       "sunset alone",
+        "today":      "morning sunrise city",
+        "tomorrow":   "sunrise dawn",
+        "life":       "life journey road",
+        "live":       "living life journey",
+        "change":     "change transformation",
+        "future":     "future city light",
+        "past":       "old memories vintage",
+        # mind / knowledge / wisdom
+        "mind":       "thinking alone dark",
+        "think":      "thinking alone dark",
+        "wisdom":     "wisdom old books",
+        "knowledge":  "knowledge books study",
+        "truth":      "truth light dark",
+        "freedom":    "freedom open sky",
+        "free":       "freedom open sky",
+        # love / people
+        "love":       "love couple nature",
+        "heart":      "heart emotion alone",
+        "soul":       "soul dark light",
+        "lonely":     "loneliness alone rain",
+        "alone":      "alone dark rain",
+        "silence":    "silence alone dark",
+        # success / work
+        "success":    "success achievement",
+        "work":       "hard work focus",
+        "great":      "great achievement sunrise",
+        "achieve":    "achievement success",
+        # nature / world
+        "world":      "world earth nature",
+        "nature":     "nature forest light",
+        "sky":        "sky clouds dramatic",
+        "storm":      "storm dark clouds",
+        "rain":       "rain dark city",
+        "night":      "night city dark",
+        "dark":       "dark shadows alone",
+        "light":      "light rays hope",
+        "fire":       "fire flame dark",
+        "water":      "water river calm",
+        "mountain":   "mountain summit climb",
+        "road":       "road journey alone",
+        "journey":    "journey road alone",
+        # common motivational quote words not yet mapped
+        "opportunity": "opportunity open door light",
+        "difficult":   "struggle dark rain",
+        "difficulty":  "struggle dark rain",
+        "important":   "meaningful life sunrise",
+        "happiness":   "happiness joy nature",
+        "happy":       "happiness joy nature",
+        "purpose":     "purpose path sunrise",
+        "meaning":     "meaningful life light",
+        "mindset":     "mindset focus alone",
+        "action":      "action movement city",
+        "character":   "character strength alone",
+        "attitude":    "attitude sunrise energy",
+        "beginning":   "beginning new sunrise",
+        "beginning":   "new beginning sunrise",
+        "start":       "start new journey road",
+        "mistake":     "mistake dark rain",
+        "mistakes":    "mistake dark rain",
+        "choice":      "choice crossroads road",
+        "choices":     "choice crossroads road",
+        "path":        "path road alone forest",
+        "potential":   "potential sunrise mountain",
+        "growth":      "growth nature sunrise",
+        "habit":       "habit focus discipline",
+        "discipline":  "discipline focus dark",
+        "focus":       "focus alone thinking dark",
+        "vision":      "vision light future",
+        "better":      "better future sunrise",
+        "broken":      "broken rain dark alone",
+        "beautiful":   "beautiful nature sunset",
+        "beauty":      "beauty nature light",
+        "peace":       "peace calm water nature",
+        "calm":        "calm water nature",
+        "worthy":      "worthy sunrise confidence",
+        "worthy":      "worthy sunrise confidence",
+        "worthy":      "worthy sunrise confidence",
+        "accept":      "acceptance calm water",
+        "regret":      "regret alone dark rain",
+        "forgive":     "forgiveness light calm",
+        "patient":     "patience calm water",
+        "patience":    "patience calm water",
+        "grateful":    "gratitude sunrise warmth",
+        "gratitude":   "gratitude sunrise warmth",
+        "inspire":     "inspiration sunrise light",
+        "inspired":    "inspiration sunrise light",
+        "powerful":    "power strength mountain",
+        "power":       "power strength mountain",
+        "impossible":  "impossible mountain climb",
+        "possible":    "possible sunrise hope",
+        "learn":       "learning books knowledge",
+        "learned":     "learning books knowledge",
+        "teaching":    "teaching wisdom books",
+        "teacher":     "teaching wisdom books",
+        "kindness":    "kindness light warmth",
+        "kind":        "kindness light warmth",
+        "respect":     "respect dignity light",
+        "trust":       "trust calm nature",
+        "honest":      "honesty truth light",
+        "worth":       "worthy sunrise light",
+        "desire":      "desire fire passion",
+        "passion":     "passion fire energy",
+        "energy":      "energy sunrise motivation",
+        "tired":       "tired alone dark",
+        "tired":       "tired alone dark",
+        "broken":      "broken rain dark alone",
+        "heal":        "healing light calm water",
+        "healing":     "healing light calm water",
+        "empty":       "empty alone dark",
+        "lost":        "lost alone dark road",
+    }
+
+    STOPWORDS = {
+        "the","a","an","and","or","but","in","on","at","to","for","of","with",
+        "by","from","is","it","its","was","are","were","be","been","being",
+        "have","has","had","do","does","did","will","would","could","should",
+        "not","no","nor","so","yet","both","either","neither","as","if","than",
+        "that","this","these","those","what","which","who","whom","whose",
+        "when","where","why","how","all","each","every","both","few","more",
+        "most","other","some","such","into","through","during","before","after",
+        "above","below","between","out","off","over","under","again","then",
+        "once","i","you","he","she","we","they","me","him","her","us","them",
+        "my","your","his","our","their","can","may","might","must","shall",
+        "there","their","too","very","just","only","also","even","still","never",
+        "always","about","because","while","though","although","however","any",
+        "know","make","made","say","said","get","got","go","went","come","came",
+        "see","look","take","want","give","use","find","new","one","two","man",
+        "men","woman","women","person","people","things","thing","way","ways",
+    }
+
+    # Clean and tokenise
+    words = re.sub(r"[^a-zA-Z ]", " ", quote_text.lower()).split()
+    content = [w for w in words if w not in STOPWORDS and len(w) > 3]
+
+    # Score each content word against the theme map
+    for word in content:
+        if word in THEME_MAP:
+            phrase = THEME_MAP[word]
+            print(f"   🎨 Quote keyword: '{word}' → '{phrase}'")
+            return phrase
+
+    # Partial match — check if any theme key is a substring of a content word
+    for word in content:
+        for key, phrase in THEME_MAP.items():
+            if key in word or word in key:
+                print(f"   🎨 Quote keyword (partial): '{word}~{key}' → '{phrase}'")
+                return phrase
+
+    # Last resort — use the longest content word as raw Pexels keyword
+    fallback = max(content, key=len) if content else "dark cinematic"
+    print(f"   🎨 Quote keyword (fallback word): '{fallback}'")
+    return fallback
+
+
 def create_youtube_short(quote_text, author):
-    # keyword = quote_text.split()[0]
-    keywords = ["dark", "rain", "alone", "city night", "thinking", "sad"]
-    keyword = random.choice(keywords)
+    # Derive Pexels mood keyword directly from the quote text
+    keyword = _quote_to_keyword(quote_text)
 
     # ── 1. Split quote into segments ────────────────────────────────────────
     hook = get_hook()
