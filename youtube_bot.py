@@ -126,6 +126,7 @@ def get_quote():
         ("Your love makes me strong, your hate makes me unstoppable.", "Cristiano Ronaldo"),
         ("Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing or learning to do.", "Pele"),
         ("People throw stones at you and you convert them into milestones.", "Sachin Tendulkar"),
+        ("I'm a fighter. I believe in the eye-for-an-eye business. I'm no cheek turner. I got no respect for a man who won't hit back. You kill my dog, you better hide your cat","Muhammad Ali")
     ]
     return random.choice(defaults)
 
