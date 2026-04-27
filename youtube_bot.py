@@ -117,11 +117,15 @@ def get_quote():
         print("⚠️ Quotable API failed, using default.")
 
     defaults = [
-        ("It isn't normal to know what we want. It is a rare and difficult psychological achievement.", "Abraham Maslow"),
-        ("The two most important days in your life are the day you are born and the day you find out why.", "Mark Twain"),
-        ("Death is not the greatest loss in life. The greatest loss is what dies inside us while we live.", "Norman Cousins"),
-        ("Liberty means responsibility. That is why most people dread it.", "George Bernard Shaw"),
-        ("Life's most persistent and urgent question is, What are you doing for others?", "Martin Luther King Jr."),
+        ("I think the reason why I am the person who I am today is because I went through those tough times when I was younger.", "LeBron James"),
+        ("Ask me to play. I’ll play. Ask me to shoot. I’ll shoot. Ask me to pass. I’ll pass. Ask me to steal, block out, sacrifice, lead, dominate. Anything. But it’s not what you ask of me. It’s what I ask of myself.", "LeBron James"),
+        ("I always say, decisions I make, I live with them. There’s always ways you can correct them or ways you can do them better. At the end of the day, I live with them.", "LeBron Jame"),
+        ("To be successful you have to be selfish, or else you never achieve. And once you get to your highest level, then you have to be unselfish. Stay reachable. Stay in touch. Don't isolate.", "Michael Jordan"),
+        ("The basketball court for me, during a game, is the most peaceful place I can imagine. On the basketball court, I worry about nothing. When I'm out there, no one can bother me.", "Michael Jordan"),
+        ("Obstacles don’t have to stop you. If you run into a wall, don’t turn around and give up. Figure out how to climb it, go through it, or work around it.", "Michael Jordan"),
+        ("Your love makes me strong, your hate makes me unstoppable.", "Cristiano Ronaldo"),
+        ("Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing or learning to do.", "Pele"),
+        ("People throw stones at you and you convert them into milestones.", "Sachin Tendulkar"),
     ]
     return random.choice(defaults)
 
