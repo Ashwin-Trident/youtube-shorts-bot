@@ -903,8 +903,8 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     # Mixed in as speaker_segs so they interleave with mood clips.
     if not speaker_path:
         speaking_keywords = {
-            "male":   ["man giving speech", "man talking","Football","Basketball","Socer","Workout","Gym Workout","basketball action","ai generated","Fighting","skating"],
-            "female": ["woman giving speech", "woman talking", "Dance","Basketball","ai generated","Fighting","babies","skating","ai generated"],
+            "male":   ["Football","Basketball","Socer","Workout","Gym Workout","basketball action","ai generated","Fighting","skating"],
+            "female": ["Dance","Basketball","ai generated","Fighting","babies","skating","ai generated"],
         }
         kw_list = speaking_keywords.get(gender, speaking_keywords["male"])
         speaking_urls = []
