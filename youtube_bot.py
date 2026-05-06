@@ -117,36 +117,42 @@ FALLBACK_SPEAKERS = {
 # 1️⃣  Get a quote
 #
 #  Priority:
-#    1. Quotable.io live API  (no status tracking — API quotes are ephemeral)
-#    2. Next PENDING default quote from quotes.py  (sequential by id)
-#       → auto-resets if all are posted
+#    1. Next PENDING quote from quotes.py  (sequential by id)
+#    2. Quotable.io live API  — only when ALL default quotes are posted
+#       → also auto-resets the cycle so the next run starts fresh from quotes.py
 # ─────────────────────────────────────────────
 def get_quote():
     """
     Returns (text, author, quote_id).
-    quote_id is None for live API quotes (no status tracking needed).
+    quote_id is None only for live API quotes (no status tracking needed).
     """
-    # ── 1. Live API ──────────────────────────────────────────────────────────
-    try:
-        r = requests.get("http://api.quotable.io/random", timeout=20)
-        if r.status_code == 200:
-            d = r.json()
-            print("🌐 Quote source: Quotable API")
-            return d["content"], d["author"], None
-    except Exception:
-        print("⚠️  Quotable API failed — falling back to default quotes.")
-
-    # ── 2. Next pending default quote ────────────────────────────────────────
+    # ── 1. Next pending default quote (primary source) ───────────────────────
     try:
         quote_id, text, author = get_next_quote()
         print(f"📋 Quote source: quotes.py (id={quote_id})")
         return text, author, quote_id
     except RuntimeError:
-        print("🔄 All default quotes posted — auto-resetting cycle.")
-        reset_all()
-        quote_id, text, author = get_next_quote()
-        print(f"📋 Quote source: quotes.py after reset (id={quote_id})")
-        return text, author, quote_id
+        # All default quotes have been posted — fall through to API
+        print("📋 All default quotes posted — trying Quotable API as one-off.")
+
+    # ── 2. Live API fallback (all defaults exhausted) ────────────────────────
+    try:
+        r = requests.get("http://api.quotable.io/random", timeout=20)
+        if r.status_code == 200:
+            d = r.json()
+            print("🌐 Quote source: Quotable API (default quotes exhausted)")
+            # Auto-reset so the NEXT run starts fresh from quotes.py again
+            print("🔄 Auto-resetting default quotes cycle for next run...")
+            reset_all()
+            return d["content"], d["author"], None
+    except Exception:
+        print("⚠️  Quotable API also failed — force-resetting and retrying quotes.py.")
+
+    # ── 3. Last resort: reset cycle and grab first quote ─────────────────────
+    reset_all()
+    quote_id, text, author = get_next_quote()
+    print(f"📋 Quote source: quotes.py after reset (id={quote_id})")
+    return text, author, quote_id
 
 
 # ─────────────────────────────────────────────
