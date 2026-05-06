@@ -1266,8 +1266,64 @@ def main():
     # ── Mark as posted AFTER successful upload ────────────────────────────────
     if quote_id is not None:
         mark_posted(quote_id)
+        _git_commit_status(quote_id)
         print(f"\n📊 quotes.py updated — run  python main.py --status  to see all quotes.")
 
 
 if __name__ == "__main__":
     main()
+
+
+def _git_commit_status(quote_id: int) -> None:
+    """
+    Commit and push the updated quotes.py back to the GitHub repo.
+
+    This is essential when running inside GitHub Actions — without it,
+    the status change exists only in the ephemeral runner and is lost
+    after the job finishes.
+
+    Safe to call locally too: silently skips if not inside a git repo
+    or if there is nothing to commit.
+    """
+    def _run(cmd):
+        return subprocess.run(
+            cmd, capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+
+    # Check we are inside a git repo
+    if _run(["git", "rev-parse", "--is-inside-work-tree"]).returncode != 0:
+        print("ℹ️  Not a git repo — skipping status commit.")
+        return
+
+    # Configure git identity (needed in CI; harmless locally)
+    _run(["git", "config", "user.name",  "github-actions[bot]"])
+    _run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
+
+    # Stage only quotes.py
+    stage = _run(["git", "add", "quotes.py"])
+    if stage.returncode != 0:
+        print(f"⚠️  git add failed: {stage.stderr.strip()}")
+        return
+
+    # Check if there is actually anything to commit
+    diff = _run(["git", "diff", "--staged", "--quiet"])
+    if diff.returncode == 0:
+        print("ℹ️  quotes.py unchanged on disk — nothing to commit.")
+        return
+
+    # Commit ([skip ci] prevents this commit triggering another workflow run)
+    msg = f"chore: mark quote id={quote_id} as posted [skip ci]"
+    commit = _run(["git", "commit", "-m", msg])
+    if commit.returncode != 0:
+        print(f"⚠️  git commit failed: {commit.stderr.strip()}")
+        return
+    print(f"📝 Git commit: {msg}")
+
+    # Push
+    push = _run(["git", "push"])
+    if push.returncode != 0:
+        print(f"⚠️  git push failed: {push.stderr.strip()}")
+        print("   Make sure the workflow has  permissions: contents: write")
+    else:
+        print("🚀 quotes.py pushed to repo — status persisted for next run.")
