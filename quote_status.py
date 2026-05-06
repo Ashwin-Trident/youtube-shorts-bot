@@ -46,67 +46,71 @@ def _get_quotes():
 
 def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
     """
-    Rewrite the quotes.py file in-place, updating only the status and
-    posted_at fields for the quote with the given id.
+    Update status and posted_at for a single quote by rewriting quotes.py.
 
-    Uses regex to find the block for this quote and replace just those
-    two field values — all other content is preserved exactly.
+    Approach: load DEFAULT_QUOTES via importlib, mutate the target entry
+    in-memory, then regenerate the entire quotes.py file from scratch.
+    This is 100% reliable — no regex ID collision, no line-scanning fragility.
     """
-    with open(QUOTES_FILE, "r", encoding="utf-8") as fh:
-        source = fh.read()
+    import importlib
+    importlib.reload(_quotes_module)
+    quotes = list(_quotes_module.DEFAULT_QUOTES)   # fresh copy
 
-    # We need to find the dict block for this specific quote id and patch it.
-    # Strategy: locate  "id": <N>,  then within a reasonable window replace
-    # the nearest "status": "..." and "posted_at": ... lines.
-
-    # Build the replacement values
-    status_val    = f'"{new_status}"'
-    posted_at_val = f'"{new_posted_at}"' if new_posted_at else "None"
-
-    # Split into lines for safe, targeted editing
-    lines     = source.splitlines(keepends=True)
-    id_line   = None
-
-    for i, line in enumerate(lines):
-        # Match the id field for this specific quote (word boundary safe)
-        if re.search(rf'"id"\s*:\s*{quote_id}\s*,', line):
-            id_line = i
+    # Find and update the target quote
+    found = False
+    for q in quotes:
+        if q["id"] == quote_id:
+            q["status"]    = new_status
+            q["posted_at"] = new_posted_at
+            found = True
             break
 
-    if id_line is None:
-        raise ValueError(f"Quote id={quote_id} not found in {QUOTES_FILE}")
+    if not found:
+        raise ValueError(f"Quote id={quote_id} not found in DEFAULT_QUOTES")
 
-    # Scan forward from id_line (max 20 lines) to patch status + posted_at
-    patched_status    = False
-    patched_posted_at = False
+    # Regenerate quotes.py content
+    lines = []
+    lines.append('"""\n')
+    lines.append('quotes.py\n')
+    lines.append('─────────────────────────────────────────────────────────────\n')
+    lines.append('Central store for all default quotes used by the YouTube Shorts bot.\n')
+    lines.append('\n')
+    lines.append('Each entry is a dict with these fields:\n')
+    lines.append('  {\n')
+    lines.append('    "id"        : unique int  (never reuse / reorder),\n')
+    lines.append('    "text"      : the quote string,\n')
+    lines.append('    "author"    : speaker name,\n')
+    lines.append('    "status"    : "pending" | "posted"   ← updated by quote_status.py after upload\n')
+    lines.append('    "posted_at" : ISO-8601 UTC string, or None\n')
+    lines.append('  }\n')
+    lines.append('\n')
+    lines.append('quote_status.py reads and writes the "status" / "posted_at" fields\n')
+    lines.append('directly in this file so everything stays in one place — no separate JSON needed.\n')
+    lines.append('\n')
+    lines.append('To add a new quote: append a new dict with a unique id,\n')
+    lines.append('status="pending", and posted_at=None.\n')
+    lines.append('─────────────────────────────────────────────────────────────\n')
+    lines.append('"""\n')
+    lines.append('\n')
+    lines.append('DEFAULT_QUOTES = [\n')
 
-    for j in range(id_line + 1, min(id_line + 20, len(lines))):
-        if not patched_status and re.search(r'"status"\s*:', lines[j]):
-            lines[j] = re.sub(
-                r'("status"\s*:\s*)("pending"|"posted")',
-                rf'\g<1>{status_val}',
-                lines[j],
-            )
-            patched_status = True
+    for q in quotes:
+        posted_at_val = f'"{q["posted_at"]}"' if q["posted_at"] else "None"
+        # Escape any backslashes or quotes in text/author
+        text   = q["text"].replace('\\', '\\\\').replace('"', '\\"')
+        author = q["author"].replace('\\', '\\\\').replace('"', '\\"')
 
-        if not patched_posted_at and re.search(r'"posted_at"\s*:', lines[j]):
-            lines[j] = re.sub(
-                r'("posted_at"\s*:\s*)(None|"[^"]*")',
-                rf'\g<1>{posted_at_val}',
-                lines[j],
-            )
-            patched_posted_at = True
+        lines.append('    {\n')
+        lines.append(f'        "id": {q["id"]},\n')
+        lines.append(f'        "text": "{text}",\n')
+        lines.append(f'        "author": "{author}",\n')
+        lines.append(f'        "status": "{q["status"]}",\n')
+        lines.append(f'        "posted_at": {posted_at_val},\n')
+        lines.append('    },\n')
 
-        if patched_status and patched_posted_at:
-            break
+    lines.append(']\n')
 
-    if not patched_status or not patched_posted_at:
-        raise RuntimeError(
-            f"Could not patch status/posted_at for quote id={quote_id}. "
-            "Make sure both fields exist in the quotes.py entry."
-        )
-
-    # Safe write: write to .tmp then rename (atomic on most OS)
+    # Safe atomic write: .tmp → rename
     tmp_path = QUOTES_FILE + ".tmp"
     with open(tmp_path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
