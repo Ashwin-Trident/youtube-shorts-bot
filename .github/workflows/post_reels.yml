@@ -9,10 +9,17 @@ jobs:
   build-and-run:
     runs-on: ubuntu-latest
 
+    # ── Required so the workflow can commit quotes.py back to the repo ────
+    permissions:
+      contents: write
+
     steps:
       # ── 1. Code ────────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0                    # full history needed for git push
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # ── 2. Python ──────────────────────────────────────────────────────────
       - name: Set up Python 3.11
@@ -68,3 +75,16 @@ jobs:
           REFRESH_TOKEN:  ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python -u youtube_bot.py
+
+      # ── 8. Commit updated quotes.py back to repo ───────────────────────────
+      # Without this step, the status="posted" change written by youtube_bot.py
+      # only exists on the ephemeral runner and is lost when the job ends.
+      # The next run would check out the original file and re-post the same quote.
+      - name: Commit updated quote status
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add quotes.py
+          # Only commit if quotes.py actually changed — avoids empty commits
+          git diff --staged --quiet || git commit -m "chore: mark quote as posted [skip ci]"
+          git push
