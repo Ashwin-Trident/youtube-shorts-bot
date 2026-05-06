@@ -1,18 +1,5 @@
 """
-main.py  —  YouTube Shorts Bot  (updated)
-─────────────────────────────────────────────────────────────
-Changes vs original:
-  • Quotes are stored in quotes.py with "status" and "posted_at" fields
-  • quote_status.py manages status, writing changes directly to quotes.py
-  • get_quote() first tries the live API; on failure picks next PENDING quote
-  • SAFETY CHECK: before uploading, verifies the quote is still "pending"
-    — prevents double-posting if the script is re-run accidentally
-  • After a successful upload the quote is marked "posted" in quotes.py
-  • If all default quotes are exhausted the bot auto-resets the cycle
-  • CLI flags:
-      --status   print the full status table and exit
-      --reset    reset all quotes to pending and exit
-─────────────────────────────────────────────────────────────
+youtube_bot.py  —  YouTube Shorts Bot
 """
 
 import os
@@ -34,121 +21,75 @@ from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
 from pydub import AudioSegment
 
-# ── Quote status manager (reads/writes quotes.py directly) ──────────────────
 from quote_status import get_next_quote, is_posted, mark_posted, reset_all, show_status
 
-# ── Pillow 10+ removed ANTIALIAS; patch for MoviePy 1.0.3 ───────────────────
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.LANCZOS
 
 
 # ─────────────────────────────────────────────
-# 0️⃣  System dependency check (espeak-ng)
+# 0️⃣  espeak-ng check
 # ─────────────────────────────────────────────
 def ensure_espeak():
     try:
-        result = subprocess.run(
-            ["espeak-ng", "--version"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        result = subprocess.run(["espeak-ng", "--version"],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode == 0:
             print("✅ espeak-ng already installed.")
             return
     except FileNotFoundError:
         pass
-
     print("📦 espeak-ng not found — installing...")
-    ret = subprocess.run(
-        ["sudo", "apt-get", "install", "-y", "espeak-ng"],
-        capture_output=True, text=True,
-    )
+    ret = subprocess.run(["sudo", "apt-get", "install", "-y", "espeak-ng"],
+                         capture_output=True, text=True)
     if ret.returncode != 0:
-        print("⚠️  apt-get failed, trying apt...")
         subprocess.run(["sudo", "apt", "install", "-y", "espeak-ng"], check=True)
     print("✅ espeak-ng installed successfully.")
-
 
 ensure_espeak()
 
 
 # ─────────────────────────────────────────────
-# Voice config — 100% FREE
+# Voice config
 # ─────────────────────────────────────────────
 EDGE_VOICES = {
-    "male": [
-        "en-US-GuyNeural",
-        "en-GB-RyanNeural",
-        "en-US-DavisNeural",
-        "en-AU-WilliamNeural",
-    ],
-    "female": [
-        "en-US-AriaNeural",
-        "en-US-JennyNeural",
-        "en-GB-SoniaNeural",
-        "en-US-SaraNeural",
-    ],
+    "male":   ["en-US-GuyNeural", "en-GB-RyanNeural", "en-US-DavisNeural", "en-AU-WilliamNeural"],
+    "female": ["en-US-AriaNeural", "en-US-JennyNeural", "en-GB-SoniaNeural", "en-US-SaraNeural"],
 }
-
 VOICE_COQUI = {
     "female": {"model": "tts_models/en/ljspeech/tacotron2-DDC", "speaker_idx": None},
     "male":   {"model": "tts_models/en/ljspeech/glow-tts",      "speaker_idx": None},
 }
-
 FALLBACK_SPEAKERS = {
-    "male": [
-        "Martin Luther King Jr.",
-        "Winston Churchill",
-        "John F. Kennedy",
-        "Theodore Roosevelt",
-        "Franklin D. Roosevelt",
-    ],
-    "female": [
-        "Eleanor Roosevelt",
-        "Marie Curie",
-        "Helen Keller",
-        "Emmeline Pankhurst",
-        "Harriet Tubman",
-    ],
+    "male":   ["Martin Luther King Jr.", "Winston Churchill", "John F. Kennedy",
+               "Theodore Roosevelt", "Franklin D. Roosevelt"],
+    "female": ["Eleanor Roosevelt", "Marie Curie", "Helen Keller",
+               "Emmeline Pankhurst", "Harriet Tubman"],
 }
 
 
 # ─────────────────────────────────────────────
 # 1️⃣  Get a quote
-#
-#  Priority:
-#    1. Next PENDING quote from quotes.py  (sequential by id)
-#    2. Quotable.io live API  — only when ALL default quotes are posted
-#       → also auto-resets the cycle so the next run starts fresh from quotes.py
 # ─────────────────────────────────────────────
 def get_quote():
-    """
-    Returns (text, author, quote_id).
-    quote_id is None only for live API quotes (no status tracking needed).
-    """
-    # ── 1. Next pending default quote (primary source) ───────────────────────
     try:
         quote_id, text, author = get_next_quote()
         print(f"📋 Quote source: quotes.py (id={quote_id})")
         return text, author, quote_id
     except RuntimeError:
-        # All default quotes have been posted — fall through to API
         print("📋 All default quotes posted — trying Quotable API as one-off.")
 
-    # ── 2. Live API fallback (all defaults exhausted) ────────────────────────
     try:
         r = requests.get("http://api.quotable.io/random", timeout=20)
         if r.status_code == 200:
             d = r.json()
             print("🌐 Quote source: Quotable API (default quotes exhausted)")
-            # Auto-reset so the NEXT run starts fresh from quotes.py again
             print("🔄 Auto-resetting default quotes cycle for next run...")
             reset_all()
             return d["content"], d["author"], None
     except Exception:
         print("⚠️  Quotable API also failed — force-resetting and retrying quotes.py.")
 
-    # ── 3. Last resort: reset cycle and grab first quote ─────────────────────
     reset_all()
     quote_id, text, author = get_next_quote()
     print(f"📋 Quote source: quotes.py after reset (id={quote_id})")
@@ -156,7 +97,7 @@ def get_quote():
 
 
 # ─────────────────────────────────────────────
-# 1b️⃣  Scroll-stopping hook line
+# 1b️⃣  Hook line
 # ─────────────────────────────────────────────
 def get_hook():
     hooks = [
@@ -189,13 +130,12 @@ def _best_fit(draw, text, font_path, max_w, max_h, max_font=40, min_font=22, spa
 
 
 # ─────────────────────────────────────────────
-# 3️⃣  Split quote into slide segments
+# 3️⃣  Split quote into segments
 # ─────────────────────────────────────────────
 def split_into_segments(quote_text, min_words=3):
     import re
     raw      = re.split(r'[.,!?]+', quote_text)
     segments = [s.strip() for s in raw if s.strip()]
-
     merged, buf = [], ""
     for seg in segments:
         if buf:
@@ -210,22 +150,21 @@ def split_into_segments(quote_text, min_words=3):
             merged[-1] += ", " + buf
         else:
             merged.append(buf)
-
     segments = [s.upper() for s in merged if s]
     return segments if segments else [quote_text.upper()]
 
 
 # ─────────────────────────────────────────────
-# 3b️⃣  Render karaoke frame
+# 3b️⃣  Karaoke frame
 # ─────────────────────────────────────────────
 def render_word_highlight_image(
     words, highlight_idx, frame_id, size=(1080, 1920),
     font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ):
-    W, H   = size
-    text   = " ".join(words)
-    img    = Image.new("RGBA", size, (0, 0, 0, 0))
-    draw   = ImageDraw.Draw(img)
+    W, H = size
+    text = " ".join(words)
+    img  = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
 
     max_box_h = int(H * 0.28)
     font_size = 36
@@ -236,7 +175,7 @@ def render_word_highlight_image(
     chosen_wrap = text
     for fs in range(font_size, min_font - 1, -2):
         f = ImageFont.truetype(font_path, fs)
-        avg_w = f.getlength("A")
+        avg_w  = f.getlength("A")
         wrap_w = max(8, int((W * 0.82) / avg_w))
         wrapped = textwrap.fill(text, width=wrap_w)
         bbox = draw.multiline_textbbox((0, 0), wrapped, font=f, spacing=spacing)
@@ -259,8 +198,7 @@ def render_word_highlight_image(
 
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
     ImageDraw.Draw(ov).rounded_rectangle(
-        [box_x0, box_y0, box_x1, box_y1], radius=28, fill=(0, 0, 0, 190)
-    )
+        [box_x0, box_y0, box_x1, box_y1], radius=28, fill=(0, 0, 0, 190))
     img  = Image.alpha_composite(img, ov)
     draw = ImageDraw.Draw(img)
 
@@ -273,7 +211,6 @@ def render_word_highlight_image(
         line_bbox  = draw.textbbox((0, 0), line, font=chosen_font)
         line_w     = line_bbox[2] - line_bbox[0]
         x          = (W - line_w) // 2
-
         for wi, word in enumerate(line_words):
             global_wi = word_cursor + wi
             if global_wi == highlight_idx:
@@ -282,12 +219,10 @@ def render_word_highlight_image(
                 color = (180, 180, 180)
             else:
                 color = (255, 255, 255)
-
             draw.text((x, cursor_y), word, font=chosen_font,
                       fill=(0, 0, 0), stroke_width=3, stroke_fill=(0, 0, 0))
             draw.text((x, cursor_y), word, font=chosen_font, fill=color)
             x += chosen_font.getlength(word + " ")
-
         word_cursor += len(line_words)
         line_h = draw.textbbox((0, 0), "Ag", font=chosen_font)[3] + spacing
         cursor_y += line_h
@@ -298,42 +233,33 @@ def render_word_highlight_image(
 
 
 # ─────────────────────────────────────────────
-# 3c️⃣  Build audio-synced karaoke word clips
+# 3c️⃣  Karaoke word clips
 # ─────────────────────────────────────────────
 def build_quote_slides(segments, start_times, durations, size):
     slides   = []
     frame_id = 0
-
     for seg_i, (seg, seg_start, seg_dur) in enumerate(zip(segments, start_times, durations)):
         words = seg.split()
         n     = len(words)
         if n == 0:
             continue
-
         char_counts = [max(len(w), 1) for w in words]
         total_chars = sum(char_counts)
         word_durs   = [seg_dur * (c / total_chars) for c in char_counts]
-
         preview = seg[:50] + ("..." if len(seg) > 50 else "")
         print(f"   📝 Segment {seg_i+1}: [{seg_start:.2f}s → {seg_start+seg_dur:.2f}s]  \"{preview}\"  ({n} words)")
-
         word_start = seg_start
         for w_i, (word, wdur) in enumerate(zip(words, word_durs)):
             img_path = render_word_highlight_image(words, w_i, frame_id, size=size)
-            clip = (
-                ImageClip(img_path)
-                .set_start(word_start)
-                .set_duration(wdur)
-            )
+            clip = ImageClip(img_path).set_start(word_start).set_duration(wdur)
             slides.append(clip)
             word_start += wdur
             frame_id   += 1
-
     return slides
 
 
 # ─────────────────────────────────────────────
-# 4️⃣  Author overlay image
+# 4️⃣  Author overlay
 # ─────────────────────────────────────────────
 def create_author_image(
     author, size=(1080, 1920),
@@ -351,62 +277,51 @@ def create_author_image(
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if tw <= W * 0.80:
             break
-
     tx, ty   = (W - tw) // 2, int(H * 0.875)
     pad_x, pad_y = 28, 16
-
     ov = Image.new("RGBA", size, (0, 0, 0, 0))
     ImageDraw.Draw(ov).rounded_rectangle(
         [tx - pad_x, ty - pad_y, tx + tw + pad_x, ty + th + pad_y],
-        radius=16, fill=(0, 0, 0, 175),
-    )
+        radius=16, fill=(0, 0, 0, 175))
     img  = Image.alpha_composite(img, ov)
     draw = ImageDraw.Draw(img)
     draw.text((tx, ty), text, font=font, fill=(255, 215, 60))
-
     path = "/tmp/author_overlay.png"
     img.save(path)
     return path
 
 
 # ─────────────────────────────────────────────
-# 4b  Fetch author photo from Wikipedia (FREE)
+# 4b  Author photo (Wikipedia)
 # ─────────────────────────────────────────────
 def fetch_author_photo(author_name):
     try:
         title = author_name.strip().replace(" ", "_")
-        api   = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
-        r = requests.get(api, timeout=10,
-                         headers={"User-Agent": "YoutubeShortsBot/1.0"})
+        r = requests.get(
+            f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}",
+            timeout=10, headers={"User-Agent": "YoutubeShortsBot/1.0"})
         if r.status_code != 200:
-            print(f"   ℹ️  Wikipedia: no page for '{author_name}'")
             return None
-
         data  = r.json()
         thumb = data.get("thumbnail") or data.get("originalimage")
         if not thumb:
-            print(f"   ℹ️  Wikipedia: no photo for '{author_name}'")
             return None
-
-        img_url  = thumb["source"]
-        img_resp = requests.get(img_url, timeout=15,
+        img_resp = requests.get(thumb["source"], timeout=15,
                                 headers={"User-Agent": "YoutubeShortsBot/1.0"})
         if img_resp.status_code != 200:
             return None
-
         out = f"/tmp/author_photo_{author_name[:20].replace(' ','_')}.jpg"
         with open(out, "wb") as fh:
             fh.write(img_resp.content)
         print(f"   ✅ Author photo: {out}")
         return out
-
     except Exception as e:
         print(f"   ⚠️  fetch_author_photo failed: {e}")
         return None
 
 
 # ─────────────────────────────────────────────
-# 4c  Generate thumbnail (1080×1920)
+# 4c  Thumbnail
 # ─────────────────────────────────────────────
 def generate_thumbnail(
     hook, quote_text, author, bg_frame_path,
@@ -424,47 +339,38 @@ def generate_thumbnail(
     if author_photo_path:
         photo_h = int(H * 0.62)
         panel_h = H - photo_h
-
         photo = Image.open(author_photo_path).convert("RGB")
         pw, ph = photo.size
         scale  = max(W / pw, photo_h / ph)
         new_w, new_h = int(pw * scale), int(ph * scale)
         photo  = photo.resize((new_w, new_h), Image.LANCZOS)
-        left = (new_w - W) // 2
-        photo = photo.crop((left, 0, left + W, photo_h))
-
+        left   = (new_w - W) // 2
+        photo  = photo.crop((left, 0, left + W, photo_h))
         ph_arr = np.array(photo, dtype=np.float32) * 0.78
         photo  = Image.fromarray(ph_arr.clip(0, 255).astype(np.uint8))
-
         fade_h = int(photo_h * 0.28)
         fade   = Image.new("RGBA", (W, photo_h), (0, 0, 0, 0))
         for y in range(photo_h - fade_h, photo_h):
             t     = (y - (photo_h - fade_h)) / fade_h
             alpha = int(255 * (t ** 1.6))
             ImageDraw.Draw(fade).line([(0, y), (W, y)], fill=(0, 0, 0, alpha))
-        photo_rgba = photo.convert("RGBA")
-        photo_rgba = Image.alpha_composite(photo_rgba, fade)
-
+        photo_rgba = Image.alpha_composite(photo.convert("RGBA"), fade)
         panel  = Image.new("RGB", (W, panel_h), (10, 10, 14))
         canvas = Image.new("RGBA", (W, H))
         canvas.paste(photo_rgba, (0, 0))
         canvas.paste(panel.convert("RGBA"), (0, photo_h))
         draw = ImageDraw.Draw(canvas)
         text_region_top = photo_h + 14
-
     else:
         bg = Image.open(bg_frame_path).convert("RGB").resize((W, H), Image.LANCZOS)
         bg = bg.filter(ImageFilter.GaussianBlur(radius=18))
         bg_arr = np.array(bg, dtype=np.float32) * 0.32
         bg = Image.fromarray(bg_arr.clip(0, 255).astype(np.uint8))
-
         grad_arr = np.zeros((H, W, 4), dtype=np.uint8)
         for y in range(H):
-            alpha = int(210 * (y / H) ** 0.55)
-            grad_arr[y, :, 3] = alpha
-        grad   = Image.fromarray(grad_arr, "RGBA")
-        canvas = bg.convert("RGBA")
-        canvas = Image.alpha_composite(canvas, grad)
+            grad_arr[y, :, 3] = int(210 * (y / H) ** 0.55)
+        canvas = Image.alpha_composite(bg.convert("RGBA"),
+                                       Image.fromarray(grad_arr, "RGBA"))
         draw   = ImageDraw.Draw(canvas)
         text_region_top = int(H * 0.40)
 
@@ -472,10 +378,7 @@ def generate_thumbnail(
     PAD_BOTTOM  = 55
     text_budget = H - text_region_top - PAD_BOTTOM
     CHROME_H    = 6 + 20 + 22 + 22 + 2 + 16
-
-    excerpt = " ".join(quote_text.split()[:8])
-    if len(quote_text.split()) > 8:
-        excerpt += "..."
+    excerpt = " ".join(quote_text.split()[:8]) + ("..." if len(quote_text.split()) > 8 else "")
     au_text = f"— {author}"
 
     chosen = None
@@ -485,20 +388,14 @@ def generate_thumbnail(
         f   = ImageFont.truetype(bold_font,   fs)
         f2  = ImageFont.truetype(bold_font,   fs2)
         f3  = ImageFont.truetype(italic_font, fs3)
-
         ww  = max(6, int(hook_max_w / f.getlength("A")))
         ww2 = max(8, int(hook_max_w / f2.getlength("A")))
         hook_w = tw.fill(hook.upper(),    width=ww)
         ex_w   = tw.fill(excerpt.upper(), width=ww2)
-
         hbb = draw.multiline_textbbox((0,0), hook_w, font=f,  spacing=8)
         ebb = draw.multiline_textbbox((0,0), ex_w,   font=f2, spacing=7)
         abb = draw.textbbox((0,0), au_text, font=f3)
-
-        hook_h = hbb[3] - hbb[1]
-        ex_h   = ebb[3] - ebb[1]
-        au_h   = abb[3] - abb[1]
-
+        hook_h = hbb[3]-hbb[1]; ex_h = ebb[3]-ebb[1]; au_h = abb[3]-abb[1]
         if CHROME_H + hook_h + ex_h + au_h <= text_budget and hbb[2]-hbb[0] <= hook_max_w:
             chosen = (f, hook_w, hook_h, hbb, f2, ex_w, ex_h, ebb, f3, au_h, abb)
             break
@@ -515,9 +412,7 @@ def generate_thumbnail(
         hook_h = hbb[3]-hbb[1]; ex_h = ebb[3]-ebb[1]; au_h = abb[3]-abb[1]
         chosen = (f, hook_w, hook_h, hbb, f2, ex_w, ex_h, ebb, f3, au_h, abb)
 
-    (f,  hook_w, hook_h, hbb,
-     f2, ex_w,   ex_h,   ebb,
-     f3, au_h,   abb) = chosen
+    (f, hook_w, hook_h, hbb, f2, ex_w, ex_h, ebb, f3, au_h, abb) = chosen
 
     bar_y = text_region_top + 10
     bar_w = int(W * 0.52)
@@ -540,8 +435,7 @@ def generate_thumbnail(
 
     div_y = ex_y + ex_h + 22
     div_w = int(W * 0.28)
-    draw.rectangle([(W-div_w)//2, div_y, (W+div_w)//2, div_y+2],
-                   fill=(255,255,255,150))
+    draw.rectangle([(W-div_w)//2, div_y, (W+div_w)//2, div_y+2], fill=(255,255,255,150))
 
     au_y = div_y + 16
     au_x = (W - (abb[2] - abb[0])) // 2
@@ -555,7 +449,7 @@ def generate_thumbnail(
 
 
 # ─────────────────────────────────────────────
-# 5️⃣  Fetch Pexels video URLs
+# 5️⃣  Pexels video URLs
 # ─────────────────────────────────────────────
 def get_video_urls(keyword="nature", count=5):
     key = os.environ.get("PEXELS_API_KEY")
@@ -578,7 +472,7 @@ def get_video_urls(keyword="nature", count=5):
         for video in videos:
             files = video.get("video_files", [])
             def hd_score(vf):
-                w, h = vf.get("width", 0), vf.get("height", 0)
+                w, h   = vf.get("width", 0), vf.get("height", 0)
                 is_mp4 = vf.get("file_type") == "video/mp4"
                 is_hd  = h >= 1920 or w >= 1080
                 return (0 if is_mp4 else 1, 0 if is_hd else 1, -(h or 0))
@@ -596,7 +490,7 @@ def get_video_urls(keyword="nature", count=5):
 
 
 # ─────────────────────────────────────────────
-# 6️⃣  Download video locally
+# 6️⃣  Download video
 # ─────────────────────────────────────────────
 def download_video(url):
     print("⬇️ Downloading video...")
@@ -613,11 +507,10 @@ def download_video(url):
 
 
 # ─────────────────────────────────────────────
-# 6a  Fetch copyright-free author video (Wikimedia)
+# 6a  Wikimedia author video
 # ─────────────────────────────────────────────
 def _name_tokens(name):
-    SKIP = {"jr", "jr.", "sr", "sr.", "dr", "dr.", "mr", "mr.", "mrs",
-            "prof", "rev", "f.", "f", "b.", "b"}
+    SKIP = {"jr","jr.","sr","sr.","dr","dr.","mr","mr.","mrs","prof","rev","f.","f","b.","b"}
     return [w.lower().strip(".,") for w in name.split()
             if len(w) > 2 and w.lower().strip(".,") not in SKIP]
 
@@ -627,41 +520,29 @@ def _wikimedia_video(name, label="speaker"):
         tokens = _name_tokens(name)
         r = requests.get(
             "https://commons.wikimedia.org/w/api.php",
-            params={
-                "action":      "query",
-                "list":        "search",
-                "srsearch":    f'"{name}" (speech OR interview OR address OR talk)',
-                "srnamespace": "6",
-                "srlimit":     "20",
-                "srwhat":      "text",
-                "format":      "json",
-            },
-            timeout=10,
-            headers={"User-Agent": "YoutubeShortsBot/1.0"},
+            params={"action": "query", "list": "search",
+                    "srsearch": f'"{name}" (speech OR interview OR address OR talk)',
+                    "srnamespace": "6", "srlimit": "20", "srwhat": "text", "format": "json"},
+            timeout=10, headers={"User-Agent": "YoutubeShortsBot/1.0"},
         )
         if r.status_code != 200:
             return None
-
         results = r.json().get("query", {}).get("search", [])
         video_titles = [
             res["title"] for res in results
             if res["title"].lower().endswith((".webm", ".ogv", ".mp4"))
             and any(tok in res["title"].lower() for tok in tokens)
         ]
-
         if not video_titles:
             print(f"   ℹ️  No verified Wikimedia video for '{name}'")
             return None
-
         for title in video_titles:
             try:
                 info = requests.get(
                     "https://commons.wikimedia.org/w/api.php",
                     params={"action": "query", "titles": title,
-                            "prop": "videoinfo", "viprop": "url|mime",
-                            "format": "json"},
-                    timeout=10,
-                    headers={"User-Agent": "YoutubeShortsBot/1.0"},
+                            "prop": "videoinfo", "viprop": "url|mime", "format": "json"},
+                    timeout=10, headers={"User-Agent": "YoutubeShortsBot/1.0"},
                 )
                 pages = info.json().get("query", {}).get("pages", {})
                 vinfo = (next(iter(pages.values())).get("videoinfo") or [{}])[0]
@@ -669,13 +550,11 @@ def _wikimedia_video(name, label="speaker"):
                 mime  = vinfo.get("mime", "")
                 if not url or "video" not in mime:
                     continue
-
                 print(f"   🎬 Downloading {label} ({name}): {title[:55]}")
                 dl = requests.get(url, stream=True, timeout=60,
                                   headers={"User-Agent": "YoutubeShortsBot/1.0"})
                 if dl.status_code != 200:
                     continue
-
                 ext  = ".mp4" if "mp4" in mime else ".webm"
                 path = f"/tmp/{label}_video{ext}"
                 with open(path, "wb") as fh:
@@ -685,10 +564,8 @@ def _wikimedia_video(name, label="speaker"):
                 return path
             except Exception:
                 continue
-
         print(f"   ℹ️  All Wikimedia candidates failed for '{name}'")
         return None
-
     except Exception as e:
         print(f"   ⚠️  Wikimedia fetch failed for '{name}': {e}")
         return None
@@ -698,7 +575,6 @@ def fetch_author_video(author_name, gender="male"):
     path = _wikimedia_video(author_name, label="author")
     if path:
         return path
-
     candidates = FALLBACK_SPEAKERS.get(gender, FALLBACK_SPEAKERS["male"])
     random.shuffle(candidates)
     for speaker in candidates:
@@ -707,13 +583,12 @@ def fetch_author_video(author_name, gender="male"):
         if path:
             print(f"   ✅ Using fallback speaker: {speaker}")
             return path
-
     print(f"   ℹ️  No speaker video found — will use Pexels mood clips")
     return None
 
 
 # ─────────────────────────────────────────────
-# Portrait conversion helper
+# Portrait conversion
 # ─────────────────────────────────────────────
 SHORTS_W, SHORTS_H = 1080, 1920
 
@@ -739,7 +614,7 @@ def _to_portrait(clip):
 
 
 # ─────────────────────────────────────────────
-# 6b️⃣  Build background composite clip
+# 6b️⃣  Build background clip
 # ─────────────────────────────────────────────
 def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     FALLBACK = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
@@ -766,9 +641,9 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     else:
         speaking_urls = []
 
-    pexels_urls = get_video_urls(keyword, count=6)
-
+    pexels_urls  = get_video_urls(keyword, count=6)
     speaker_segs = []
+
     if speaker_path == "__pexels_speaking__":
         for url in speaking_urls:
             try:
@@ -851,13 +726,12 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     combined = concatenate_videoclips(clips, method="compose")
     if combined.duration > target:
         combined = combined.subclip(0, target)
-
     print(f"✅ Combined clip: {combined.duration:.2f}s  @ {SHORTS_W}×{SHORTS_H}")
     return combined
 
 
 # ─────────────────────────────────────────────
-# 7️⃣  TTS — edge-tts / Coqui fallback
+# 7️⃣  TTS
 # ─────────────────────────────────────────────
 import asyncio
 
@@ -877,11 +751,9 @@ def _clean_text(text):
 
 
 def _trim_silence(input_path, output_path, silence_thresh=-45):
-    cmd = [
-        "ffmpeg", "-y", "-i", input_path, "-af",
-        f"silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold={silence_thresh}dB",
-        output_path,
-    ]
+    cmd = ["ffmpeg", "-y", "-i", input_path, "-af",
+           f"silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold={silence_thresh}dB",
+           output_path]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         import shutil
@@ -918,8 +790,7 @@ def _synth_coqui(text, path, tts_engine, speaker):
     _trim_silence(raw_path, trim_path)
     result = subprocess.run(
         ["ffmpeg", "-y", "-i", trim_path, "-filter:a", "atempo=0.88", "-ar", "22050", path],
-        capture_output=True, text=True,
-    )
+        capture_output=True, text=True)
     if result.returncode != 0:
         shutil.copy(trim_path, path)
     return len(AudioSegment.from_file(path)) / 1000.0
@@ -952,42 +823,35 @@ def generate_audio_segments(segments, author):
     PAUSE_MS      = 200
     gender, voice = _pick_voice()
     coqui_cfg     = VOICE_COQUI[gender]
-
-    paths, durs = [], []
+    paths, durs   = [], []
     for i, seg in enumerate(segments):
         path = f"/tmp/tts_seg_{i:02d}.wav"
         dur  = _synth_one(seg, path, voice, coqui_cfg)
         paths.append(path)
         durs.append(dur)
         print(f"   🔊 Segment {i+1}: {dur:.2f}s  \"{seg[:50]}\"")
-
     author_path = "/tmp/tts_author.wav"
     author_dur  = _synth_one(author, author_path, voice, coqui_cfg)
     paths.append(author_path)
     durs.append(author_dur)
     print(f"   🔊 Author: {author_dur:.2f}s  \"{author}\"")
-
     return paths, durs, PAUSE_MS, gender
 
 
 # ─────────────────────────────────────────────
-# 8️⃣  Assemble full audio track
+# 8️⃣  Assemble audio
 # ─────────────────────────────────────────────
 def assemble_audio(tts_paths, durations, pause_ms, music_file):
-    PAUSE = AudioSegment.silent(duration=pause_ms)
-    voice = AudioSegment.empty()
-
+    PAUSE    = AudioSegment.silent(duration=pause_ms)
+    voice    = AudioSegment.empty()
     for path in tts_paths:
         voice += AudioSegment.from_file(path).apply_gain(5) + PAUSE
-
     total_ms = len(voice)
     total_s  = total_ms / 1000.0
-
     bg = AudioSegment.from_file(music_file).apply_gain(-18)
     if len(bg) < total_ms:
         bg = bg * (total_ms // len(bg) + 1)
-    bg = bg[:total_ms]
-
+    bg    = bg[:total_ms]
     mixed = voice.overlay(bg)
     out   = "/tmp/final_audio.wav"
     mixed.export(out, format="wav")
@@ -1057,7 +921,6 @@ def _quote_to_keyword(quote_text):
         "tired": "tired alone dark", "heal": "healing light calm water",
         "healing": "healing light calm water", "empty": "empty alone dark",
     }
-
     STOPWORDS = {
         "the","a","an","and","or","but","in","on","at","to","for","of","with",
         "by","from","is","it","its","was","are","were","be","been","being",
@@ -1075,29 +938,25 @@ def _quote_to_keyword(quote_text):
         "see","look","take","want","give","use","find","new","one","two","man",
         "men","woman","women","person","people","things","thing","way","ways",
     }
-
     words   = re.sub(r"[^a-zA-Z ]", " ", quote_text.lower()).split()
     content = [w for w in words if w not in STOPWORDS and len(w) > 3]
-
     for word in content:
         if word in THEME_MAP:
             phrase = THEME_MAP[word]
             print(f"   🎨 Quote keyword: '{word}' → '{phrase}'")
             return phrase
-
     for word in content:
         for key, phrase in THEME_MAP.items():
             if key in word or word in key:
                 print(f"   🎨 Quote keyword (partial): '{word}~{key}' → '{phrase}'")
                 return phrase
-
     fallback = max(content, key=len) if content else "dark cinematic"
     print(f"   🎨 Quote keyword (fallback): '{fallback}'")
     return fallback
 
 
 # ─────────────────────────────────────────────
-# 🔟  Build the final YouTube Short
+# 🔟  Build YouTube Short
 # ─────────────────────────────────────────────
 def create_youtube_short(quote_text, author):
     keyword  = _quote_to_keyword(quote_text)
@@ -1145,17 +1004,15 @@ def create_youtube_short(quote_text, author):
     clip.save_frame(first_frame_path, t=0.5)
     thumb_path = generate_thumbnail(hook, quote_text, author, first_frame_path, size=(W, H))
 
-    main_video = CompositeVideoClip([clip] + slide_clips + [author_clip])
-    main_video = main_video.set_audio(audio_clip)
-
-    thumb_clip   = ImageClip(thumb_path).set_duration(1.0)
+    main_video   = CompositeVideoClip([clip] + slide_clips + [author_clip])
+    main_video   = main_video.set_audio(audio_clip)
     silent_1s    = AudioSegment.silent(duration=1000)
     tmp_silence  = "/tmp/silence_1s.wav"
     silent_1s.export(tmp_silence, format="wav")
+    thumb_clip   = ImageClip(thumb_path).set_duration(1.0)
     silence_clip = AudioFileClip(tmp_silence).set_duration(1.0)
     thumb_clip   = thumb_clip.set_audio(silence_clip)
-
-    final = concatenate_videoclips([thumb_clip, main_video], method="compose")
+    final        = concatenate_videoclips([thumb_clip, main_video], method="compose")
 
     out = "/tmp/youtube_short.mp4"
     print("🎞 Rendering video...")
@@ -1182,7 +1039,6 @@ def upload_to_youtube(video_path, thumb_path=None, author=''):
         scopes        = ["https://www.googleapis.com/auth/youtube.upload"],
     )
     creds.refresh(google.auth.transport.requests.Request())
-
     youtube = build("youtube", "v3", credentials=creds)
     titles  = [
         "This will hit you hard... #Shorts",
@@ -1200,16 +1056,12 @@ def upload_to_youtube(video_path, thumb_path=None, author=''):
                 f"{author_tag} #shorts #motivation #mindset "
                 "#success #selfimprovement #quotes #dailymotivation"
             ),
-            "tags": [
-                "motivation", "shorts", "daily motivation",
-                "quotes", author.lower(), author_tag_low,
-                "inspirational quotes", "mindset",
-            ],
+            "tags": ["motivation","shorts","daily motivation","quotes",
+                     author.lower(), author_tag_low, "inspirational quotes","mindset"],
             "categoryId": "22",
         },
         "status": {"privacyStatus": "public"},
     }
-
     resp = (
         youtube.videos()
         .insert(part="snippet,status", body=body,
@@ -1223,10 +1075,56 @@ def upload_to_youtube(video_path, thumb_path=None, author=''):
 
 
 # ─────────────────────────────────────────────
+# 1️⃣2️⃣  Git commit — MUST be defined BEFORE main()
+# ─────────────────────────────────────────────
+def _git_commit_status(quote_id: int) -> None:
+    """
+    Commit and push the updated quotes.py back to GitHub.
+    Called after mark_posted() so the status change survives the
+    ephemeral GitHub Actions runner and is available on the next run.
+    Safe locally: skips silently if not inside a git repo.
+    """
+    def _run(cmd):
+        return subprocess.run(
+            cmd, capture_output=True, text=True,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+
+    if _run(["git", "rev-parse", "--is-inside-work-tree"]).returncode != 0:
+        print("ℹ️  Not a git repo — skipping status commit.")
+        return
+
+    _run(["git", "config", "user.name",  "github-actions[bot]"])
+    _run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
+
+    stage = _run(["git", "add", "quotes.py"])
+    if stage.returncode != 0:
+        print(f"⚠️  git add failed: {stage.stderr.strip()}")
+        return
+
+    if _run(["git", "diff", "--staged", "--quiet"]).returncode == 0:
+        print("ℹ️  quotes.py unchanged — nothing to commit.")
+        return
+
+    msg    = f"chore: mark quote id={quote_id} as posted [skip ci]"
+    commit = _run(["git", "commit", "-m", msg])
+    if commit.returncode != 0:
+        print(f"⚠️  git commit failed: {commit.stderr.strip()}")
+        return
+    print(f"📝 Git commit: {msg}")
+
+    push = _run(["git", "push"])
+    if push.returncode != 0:
+        print(f"⚠️  git push failed: {push.stderr.strip()}")
+        print("   Ensure the workflow has  permissions: contents: write")
+    else:
+        print("🚀 quotes.py pushed to repo — status persisted for next run.")
+
+
+# ─────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────
 def main():
-    # ── CLI helpers ──────────────────────────────────────────────────────────
     if "--status" in sys.argv:
         show_status()
         return
@@ -1236,94 +1134,31 @@ def main():
         print("✅ All quotes reset to pending in quotes.py")
         return
 
-    # ── Normal run ────────────────────────────────────────────────────────────
     quote_text, author, quote_id = get_quote()
     print(f"\n💡 Quote : {quote_text}")
     print(f"✍️  Author: {author}")
 
-    # ── STATUS CHECK: guard against double-posting ───────────────────────────
-    # Only applies to default quotes (quote_id is None for live API quotes).
     if quote_id is not None:
         print(f"🔖 Quote ID: {quote_id}  (default quote)")
         if is_posted(quote_id):
             print(
-                f"\n🚫 ABORTED — Quote id={quote_id} is already marked as POSTED in quotes.py.\n"
-                "   This prevents accidental duplicate uploads.\n"
-                "   Run  python main.py --status  to see what's pending,\n"
-                "   or   python main.py --reset   to start the cycle again."
+                f"\n🚫 ABORTED — Quote id={quote_id} is already POSTED.\n"
+                "   Run  python youtube_bot.py --status  to see pending quotes.\n"
+                "   Run  python youtube_bot.py --reset   to restart the cycle."
             )
             sys.exit(1)
         print("✅ Status check passed — quote is pending, safe to post.")
     else:
         print("🌐 API quote — no status check needed.")
 
-    # ── Generate video ────────────────────────────────────────────────────────
     video_path, thumb_path = create_youtube_short(quote_text, author)
-
-    # ── Upload ────────────────────────────────────────────────────────────────
     upload_to_youtube(video_path, thumb_path, author=author)
 
-    # ── Mark as posted AFTER successful upload ────────────────────────────────
     if quote_id is not None:
         mark_posted(quote_id)
-        _git_commit_status(quote_id)
-        print(f"\n📊 quotes.py updated — run  python main.py --status  to see all quotes.")
+        _git_commit_status(quote_id)      # ← commits & pushes quotes.py
+        print(f"\n📊 quotes.py updated — run  python youtube_bot.py --status  to see all quotes.")
 
 
 if __name__ == "__main__":
     main()
-
-
-def _git_commit_status(quote_id: int) -> None:
-    """
-    Commit and push the updated quotes.py back to the GitHub repo.
-
-    This is essential when running inside GitHub Actions — without it,
-    the status change exists only in the ephemeral runner and is lost
-    after the job finishes.
-
-    Safe to call locally too: silently skips if not inside a git repo
-    or if there is nothing to commit.
-    """
-    def _run(cmd):
-        return subprocess.run(
-            cmd, capture_output=True, text=True,
-            cwd=os.path.dirname(os.path.abspath(__file__))
-        )
-
-    # Check we are inside a git repo
-    if _run(["git", "rev-parse", "--is-inside-work-tree"]).returncode != 0:
-        print("ℹ️  Not a git repo — skipping status commit.")
-        return
-
-    # Configure git identity (needed in CI; harmless locally)
-    _run(["git", "config", "user.name",  "github-actions[bot]"])
-    _run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
-
-    # Stage only quotes.py
-    stage = _run(["git", "add", "quotes.py"])
-    if stage.returncode != 0:
-        print(f"⚠️  git add failed: {stage.stderr.strip()}")
-        return
-
-    # Check if there is actually anything to commit
-    diff = _run(["git", "diff", "--staged", "--quiet"])
-    if diff.returncode == 0:
-        print("ℹ️  quotes.py unchanged on disk — nothing to commit.")
-        return
-
-    # Commit ([skip ci] prevents this commit triggering another workflow run)
-    msg = f"chore: mark quote id={quote_id} as posted [skip ci]"
-    commit = _run(["git", "commit", "-m", msg])
-    if commit.returncode != 0:
-        print(f"⚠️  git commit failed: {commit.stderr.strip()}")
-        return
-    print(f"📝 Git commit: {msg}")
-
-    # Push
-    push = _run(["git", "push"])
-    if push.returncode != 0:
-        print(f"⚠️  git push failed: {push.stderr.strip()}")
-        print("   Make sure the workflow has  permissions: contents: write")
-    else:
-        print("🚀 quotes.py pushed to repo — status persisted for next run.")
