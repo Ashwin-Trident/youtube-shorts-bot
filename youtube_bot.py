@@ -2,14 +2,16 @@
 main.py  —  YouTube Shorts Bot  (updated)
 ─────────────────────────────────────────────────────────────
 Changes vs original:
-  • Quotes are now stored in quotes.py (25 default sports/motivation quotes)
-  • Posted status is tracked in quotes_status.json via quote_status.py
-  • get_quote()  first tries API; on failure returns next PENDING default quote
-    (sequential, lowest-id first) instead of a random one
-  • After a successful upload the quote is marked "posted" automatically
-  • If all default quotes are exhausted the bot resets the cycle automatically
-  • --status  CLI flag prints a status table and exits
-  • --reset   CLI flag resets all quotes to pending and exits
+  • Quotes are stored in quotes.py with "status" and "posted_at" fields
+  • quote_status.py manages status, writing changes directly to quotes.py
+  • get_quote() first tries the live API; on failure picks next PENDING quote
+  • SAFETY CHECK: before uploading, verifies the quote is still "pending"
+    — prevents double-posting if the script is re-run accidentally
+  • After a successful upload the quote is marked "posted" in quotes.py
+  • If all default quotes are exhausted the bot auto-resets the cycle
+  • CLI flags:
+      --status   print the full status table and exit
+      --reset    reset all quotes to pending and exit
 ─────────────────────────────────────────────────────────────
 """
 
@@ -32,10 +34,10 @@ from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
 from pydub import AudioSegment
 
-# ── NEW: quote status manager ────────────────────────────────────────────────
-from quote_status import get_next_quote, mark_posted, reset_all, show_status
+# ── Quote status manager (reads/writes quotes.py directly) ──────────────────
+from quote_status import get_next_quote, is_posted, mark_posted, reset_all, show_status
 
-# ── Pillow 10+ removed ANTIALIAS; patch it so MoviePy 1.0.3 doesn't crash ──
+# ── Pillow 10+ removed ANTIALIAS; patch for MoviePy 1.0.3 ───────────────────
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.LANCZOS
 
@@ -44,7 +46,6 @@ if not hasattr(Image, "ANTIALIAS"):
 # 0️⃣  System dependency check (espeak-ng)
 # ─────────────────────────────────────────────
 def ensure_espeak():
-    """Install espeak-ng automatically if missing."""
     try:
         result = subprocess.run(
             ["espeak-ng", "--version"],
@@ -72,7 +73,7 @@ ensure_espeak()
 
 
 # ─────────────────────────────────────────────
-# Voice config  — 100% FREE, no API key needed
+# Voice config — 100% FREE
 # ─────────────────────────────────────────────
 EDGE_VOICES = {
     "male": [
@@ -115,39 +116,36 @@ FALLBACK_SPEAKERS = {
 # ─────────────────────────────────────────────
 # 1️⃣  Get a quote
 #
-#  Priority order:
-#    1. Quotable.io API (live, random)
-#    2. Next PENDING default quote (sequential by id)
-#       → auto-resets the cycle if all quotes are posted
+#  Priority:
+#    1. Quotable.io live API  (no status tracking — API quotes are ephemeral)
+#    2. Next PENDING default quote from quotes.py  (sequential by id)
+#       → auto-resets if all are posted
 # ─────────────────────────────────────────────
 def get_quote():
     """
     Returns (text, author, quote_id).
-
-    quote_id is None when the quote comes from the live API (no status tracking
-    needed for API quotes — only default quotes are tracked).
+    quote_id is None for live API quotes (no status tracking needed).
     """
-    # ── 1. Try live API ──────────────────────────────────────────────────────
+    # ── 1. Live API ──────────────────────────────────────────────────────────
     try:
         r = requests.get("http://api.quotable.io/random", timeout=20)
         if r.status_code == 200:
             d = r.json()
             print("🌐 Quote source: Quotable API")
-            return d["content"], d["author"], None   # None = no status to track
+            return d["content"], d["author"], None
     except Exception:
-        print("⚠️  Quotable API failed — using default quotes.")
+        print("⚠️  Quotable API failed — falling back to default quotes.")
 
     # ── 2. Next pending default quote ────────────────────────────────────────
     try:
         quote_id, text, author = get_next_quote()
-        print(f"📋 Quote source: default quotes (id={quote_id})")
+        print(f"📋 Quote source: quotes.py (id={quote_id})")
         return text, author, quote_id
     except RuntimeError:
-        # All quotes have been posted — auto-reset and grab the first one
-        print("🔄 All default quotes posted — resetting cycle automatically.")
+        print("🔄 All default quotes posted — auto-resetting cycle.")
         reset_all()
         quote_id, text, author = get_next_quote()
-        print(f"📋 Quote source: default quotes after reset (id={quote_id})")
+        print(f"📋 Quote source: quotes.py after reset (id={quote_id})")
         return text, author, quote_id
 
 
@@ -262,19 +260,16 @@ def render_word_highlight_image(
 
     lines       = chosen_wrap.split("\n")
     word_cursor = 0
-    text_x      = (W - tw) // 2
     cursor_y    = box_y0 + pad_y
 
     for line in lines:
-        line_words   = line.split()
-        line_bbox    = draw.textbbox((0, 0), line, font=chosen_font)
-        line_w       = line_bbox[2] - line_bbox[0]
-        line_x       = (W - line_w) // 2
-        x            = line_x
+        line_words = line.split()
+        line_bbox  = draw.textbbox((0, 0), line, font=chosen_font)
+        line_w     = line_bbox[2] - line_bbox[0]
+        x          = (W - line_w) // 2
 
         for wi, word in enumerate(line_words):
             global_wi = word_cursor + wi
-
             if global_wi == highlight_idx:
                 color = (255, 230, 0)
             elif global_wi < highlight_idx:
@@ -285,9 +280,7 @@ def render_word_highlight_image(
             draw.text((x, cursor_y), word, font=chosen_font,
                       fill=(0, 0, 0), stroke_width=3, stroke_fill=(0, 0, 0))
             draw.text((x, cursor_y), word, font=chosen_font, fill=color)
-
-            word_w = chosen_font.getlength(word + " ")
-            x += word_w
+            x += chosen_font.getlength(word + " ")
 
         word_cursor += len(line_words)
         line_h = draw.textbbox((0, 0), "Ag", font=chosen_font)[3] + spacing
@@ -302,8 +295,8 @@ def render_word_highlight_image(
 # 3c️⃣  Build audio-synced karaoke word clips
 # ─────────────────────────────────────────────
 def build_quote_slides(segments, start_times, durations, size):
-    slides     = []
-    frame_id   = 0
+    slides   = []
+    frame_id = 0
 
     for seg_i, (seg, seg_start, seg_dur) in enumerate(zip(segments, start_times, durations)):
         words = seg.split()
@@ -344,8 +337,8 @@ def create_author_image(
     img   = Image.new("RGBA", size, (0, 0, 0, 0))
     draw  = ImageDraw.Draw(img)
     text  = f"— {author}"
-    tw = th = 0
     font  = None
+    tw = th = 0
     for fs in range(36, 18, -2):
         font = ImageFont.truetype(font_path, fs)
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -432,8 +425,7 @@ def generate_thumbnail(
         new_w, new_h = int(pw * scale), int(ph * scale)
         photo  = photo.resize((new_w, new_h), Image.LANCZOS)
         left = (new_w - W) // 2
-        top  = 0
-        photo = photo.crop((left, top, left + W, top + photo_h))
+        photo = photo.crop((left, 0, left + W, photo_h))
 
         ph_arr = np.array(photo, dtype=np.float32) * 0.78
         photo  = Image.fromarray(ph_arr.clip(0, 255).astype(np.uint8))
@@ -470,12 +462,12 @@ def generate_thumbnail(
         draw   = ImageDraw.Draw(canvas)
         text_region_top = int(H * 0.40)
 
-    hook_max_w = int(W * 0.88)
-    PAD_BOTTOM = 55
+    hook_max_w  = int(W * 0.88)
+    PAD_BOTTOM  = 55
     text_budget = H - text_region_top - PAD_BOTTOM
-    CHROME_H = 6 + 20 + 22 + 22 + 2 + 16
+    CHROME_H    = 6 + 20 + 22 + 22 + 2 + 16
 
-    excerpt  = " ".join(quote_text.split()[:8])
+    excerpt = " ".join(quote_text.split()[:8])
     if len(quote_text.split()) > 8:
         excerpt += "..."
     au_text = f"— {author}"
@@ -484,10 +476,9 @@ def generate_thumbnail(
     for fs in range(80, 22, -4):
         fs2 = max(18, int(fs * 0.48))
         fs3 = max(18, int(fs * 0.44))
-
-        f  = ImageFont.truetype(bold_font,   fs)
-        f2 = ImageFont.truetype(bold_font,   fs2)
-        f3 = ImageFont.truetype(italic_font, fs3)
+        f   = ImageFont.truetype(bold_font,   fs)
+        f2  = ImageFont.truetype(bold_font,   fs2)
+        f3  = ImageFont.truetype(italic_font, fs3)
 
         ww  = max(6, int(hook_max_w / f.getlength("A")))
         ww2 = max(8, int(hook_max_w / f2.getlength("A")))
@@ -502,8 +493,7 @@ def generate_thumbnail(
         ex_h   = ebb[3] - ebb[1]
         au_h   = abb[3] - abb[1]
 
-        total_h = CHROME_H + hook_h + ex_h + au_h
-        if total_h <= text_budget and hbb[2]-hbb[0] <= hook_max_w:
+        if CHROME_H + hook_h + ex_h + au_h <= text_budget and hbb[2]-hbb[0] <= hook_max_w:
             chosen = (f, hook_w, hook_h, hbb, f2, ex_w, ex_h, ebb, f3, au_h, abb)
             break
 
@@ -559,7 +549,7 @@ def generate_thumbnail(
 
 
 # ─────────────────────────────────────────────
-# 5️⃣  Fetch multiple Pexels video URLs
+# 5️⃣  Fetch Pexels video URLs
 # ─────────────────────────────────────────────
 def get_video_urls(keyword="nature", count=5):
     key = os.environ.get("PEXELS_API_KEY")
@@ -586,8 +576,7 @@ def get_video_urls(keyword="nature", count=5):
                 is_mp4 = vf.get("file_type") == "video/mp4"
                 is_hd  = h >= 1920 or w >= 1080
                 return (0 if is_mp4 else 1, 0 if is_hd else 1, -(h or 0))
-            files_sorted = sorted(files, key=hd_score)
-            for vf in files_sorted:
+            for vf in sorted(files, key=hd_score):
                 if vf.get("file_type") == "video/mp4":
                     w, h = vf.get("width", 0), vf.get("height", 0)
                     urls.append(vf["link"])
@@ -648,14 +637,11 @@ def _wikimedia_video(name, label="speaker"):
             return None
 
         results = r.json().get("query", {}).get("search", [])
-        video_titles = []
-        for res in results:
-            t = res["title"]
-            t_low = t.lower()
-            is_video = t_low.endswith((".webm", ".ogv", ".mp4"))
-            name_match = any(tok in t_low for tok in tokens)
-            if is_video and name_match:
-                video_titles.append(t)
+        video_titles = [
+            res["title"] for res in results
+            if res["title"].lower().endswith((".webm", ".ogv", ".mp4"))
+            and any(tok in res["title"].lower() for tok in tokens)
+        ]
 
         if not video_titles:
             print(f"   ℹ️  No verified Wikimedia video for '{name}'")
@@ -693,6 +679,7 @@ def _wikimedia_video(name, label="speaker"):
                 return path
             except Exception:
                 continue
+
         print(f"   ℹ️  All Wikimedia candidates failed for '{name}'")
         return None
 
@@ -725,27 +712,23 @@ def fetch_author_video(author_name, gender="male"):
 SHORTS_W, SHORTS_H = 1080, 1920
 
 def _to_portrait(clip):
-    from moviepy.editor import vfx
     cw, ch = clip.w, clip.h
-
     if cw == SHORTS_W and ch == SHORTS_H:
         return clip
-
     if cw > ch:
-        scale   = SHORTS_H / ch
-        new_w   = int(cw * scale)
-        clip    = clip.resize((new_w, SHORTS_H))
-        x_off   = (new_w - SHORTS_W) // 2
-        clip    = clip.crop(x1=x_off, y1=0, x2=x_off + SHORTS_W, y2=SHORTS_H)
+        scale = SHORTS_H / ch
+        new_w = int(cw * scale)
+        clip  = clip.resize((new_w, SHORTS_H))
+        x_off = (new_w - SHORTS_W) // 2
+        clip  = clip.crop(x1=x_off, y1=0, x2=x_off + SHORTS_W, y2=SHORTS_H)
     else:
-        scale   = max(SHORTS_W / cw, SHORTS_H / ch)
-        new_w   = int(cw * scale)
-        new_h   = int(ch * scale)
-        clip    = clip.resize((new_w, new_h))
-        x_off   = (new_w - SHORTS_W) // 2
-        y_off   = (new_h - SHORTS_H) // 2
-        clip    = clip.crop(x1=x_off, y1=y_off,
-                            x2=x_off + SHORTS_W, y2=y_off + SHORTS_H)
+        scale = max(SHORTS_W / cw, SHORTS_H / ch)
+        new_w = int(cw * scale)
+        new_h = int(ch * scale)
+        clip  = clip.resize((new_w, new_h))
+        x_off = (new_w - SHORTS_W) // 2
+        y_off = (new_h - SHORTS_H) // 2
+        clip  = clip.crop(x1=x_off, y1=y_off, x2=x_off + SHORTS_W, y2=y_off + SHORTS_H)
     return clip
 
 
@@ -761,7 +744,7 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     if not speaker_path:
         speaking_keywords = {
             "male":   ["Football","Basketball","Soccer","Workout","Gym Workout","basketball action","ai generated","Fighting","skating"],
-            "female": ["Dance","Basketball","ai generated","Fighting","babies","skating","ai generated"],
+            "female": ["Dance","Basketball","ai generated","Fighting","babies","skating"],
         }
         kw_list = speaking_keywords.get(gender, speaking_keywords["male"])
         speaking_urls = []
@@ -783,13 +766,12 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     if speaker_path == "__pexels_speaking__":
         for url in speaking_urls:
             try:
-                path    = download_video(url)
-                raw     = VideoFileClip(path)
-                cursor  = 0.0
+                path = download_video(url)
+                raw  = VideoFileClip(path)
+                cursor = 0.0
                 while cursor + 0.5 < raw.duration:
                     end = min(cursor + SEG_DUR, raw.duration)
-                    seg = _to_portrait(raw.subclip(cursor, end))
-                    speaker_segs.append(("speaker", seg))
+                    speaker_segs.append(("speaker", _to_portrait(raw.subclip(cursor, end))))
                     cursor = end
             except Exception as e:
                 print(f"   ⚠️  Speaking clip failed: {e}")
@@ -800,21 +782,18 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
             cursor  = 0.0
             while cursor + 0.5 < spk_raw.duration:
                 end = min(cursor + SEG_DUR, spk_raw.duration)
-                seg = _to_portrait(spk_raw.subclip(cursor, end))
-                speaker_segs.append(("speaker", seg))
+                speaker_segs.append(("speaker", _to_portrait(spk_raw.subclip(cursor, end))))
                 cursor = end
             print(f"   🎬 Speaker video split into {len(speaker_segs)} segments")
         except Exception as e:
             print(f"   ⚠️  Speaker video load failed: {e}")
-            speaker_segs = []
 
     mood_segs = []
     for url in pexels_urls:
         try:
-            path    = download_video(url)
-            raw     = VideoFileClip(path)
-            seg_dur = min(raw.duration, SEG_DUR)
-            mood_segs.append(("mood", _to_portrait(raw.subclip(0, seg_dur))))
+            path = download_video(url)
+            raw  = VideoFileClip(path)
+            mood_segs.append(("mood", _to_portrait(raw.subclip(0, min(raw.duration, SEG_DUR)))))
         except Exception as e:
             print(f"   ⚠️  Pexels clip failed: {e}")
 
@@ -867,13 +846,12 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     if combined.duration > target:
         combined = combined.subclip(0, target)
 
-    W, H = SHORTS_W, SHORTS_H
-    print(f"✅ Combined clip: {combined.duration:.2f}s  @ {W}×{H}")
+    print(f"✅ Combined clip: {combined.duration:.2f}s  @ {SHORTS_W}×{SHORTS_H}")
     return combined
 
 
 # ─────────────────────────────────────────────
-# 7️⃣  TTS — edge-tts  /  Coqui fallback
+# 7️⃣  TTS — edge-tts / Coqui fallback
 # ─────────────────────────────────────────────
 import asyncio
 
@@ -911,26 +889,19 @@ async def _edge_tts_async(text, mp3_path, voice):
 
 
 def _synth_edge(text, path, voice):
-    clean    = _clean_text(text)
-    mp3_path = path.replace(".wav", "_edge.mp3")
+    clean     = _clean_text(text)
+    mp3_path  = path.replace(".wav", "_edge.mp3")
     trim_path = path.replace(".wav", "_trim.wav")
-
     asyncio.run(_edge_tts_async(clean, mp3_path, voice))
-
-    subprocess.run(
-        ["ffmpeg", "-y", "-i", mp3_path, "-ar", "22050", path],
-        capture_output=True,
-    )
-
+    subprocess.run(["ffmpeg", "-y", "-i", mp3_path, "-ar", "22050", path], capture_output=True)
     _trim_silence(path, trim_path)
     import shutil
     shutil.move(trim_path, path)
-
     return len(AudioSegment.from_file(path)) / 1000.0
 
 
 def _synth_coqui(text, path, tts_engine, speaker):
-    import re, shutil, math
+    import shutil
     clean     = _clean_text(text)
     raw_path  = path.replace(".wav", "_raw.wav")
     trim_path = path.replace(".wav", "_trim.wav")
@@ -939,12 +910,10 @@ def _synth_coqui(text, path, tts_engine, speaker):
         kw["speaker"] = speaker
     tts_engine.tts_to_file(**kw)
     _trim_silence(raw_path, trim_path)
-
-    rate   = 0.88
-    atempo = f"atempo={rate}"
-    cmd    = ["ffmpeg", "-y", "-i", trim_path, "-filter:a", atempo,
-              "-ar", "22050", path]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(
+        ["ffmpeg", "-y", "-i", trim_path, "-filter:a", "atempo=0.88", "-ar", "22050", path],
+        capture_output=True, text=True,
+    )
     if result.returncode != 0:
         shutil.copy(trim_path, path)
     return len(AudioSegment.from_file(path)) / 1000.0
@@ -964,7 +933,6 @@ def _synth_one(text, path, voice, coqui_cfg):
         return dur
     except Exception as e:
         print(f"   ⚠️  edge-tts failed: {e}")
-
     try:
         tts = TTS(model_name=coqui_cfg["model"], progress_bar=False, gpu=False)
         dur = _synth_coqui(text, path, tts, coqui_cfg["speaker_idx"])
@@ -975,7 +943,7 @@ def _synth_one(text, path, voice, coqui_cfg):
 
 
 def generate_audio_segments(segments, author):
-    PAUSE_MS = 200
+    PAUSE_MS      = 200
     gender, voice = _pick_voice()
     coqui_cfg     = VOICE_COQUI[gender]
 
@@ -1015,8 +983,7 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
     bg = bg[:total_ms]
 
     mixed = voice.overlay(bg)
-
-    out = "/tmp/final_audio.wav"
+    out   = "/tmp/final_audio.wav"
     mixed.export(out, format="wav")
     print(f"✅ Audio assembled: {total_s:.2f}s")
     return AudioFileClip(out).set_duration(total_s), total_s
@@ -1059,14 +1026,13 @@ def _quote_to_keyword(quote_text):
         "water": "water river calm", "mountain": "mountain summit climb",
         "road": "road journey alone", "journey": "journey road alone",
         "opportunity": "opportunity open door light", "difficult": "struggle dark rain",
-        "difficulty": "struggle dark rain", "happiness": "happiness joy nature",
-        "happy": "happiness joy nature", "purpose": "purpose path sunrise",
-        "meaning": "meaningful life light", "mindset": "mindset focus alone",
-        "action": "action movement city", "character": "character strength alone",
-        "attitude": "attitude sunrise energy", "beginning": "new beginning sunrise",
-        "start": "start new journey road", "mistake": "mistake dark rain",
-        "mistakes": "mistake dark rain", "choice": "choice crossroads road",
-        "choices": "choice crossroads road", "path": "path road alone forest",
+        "happiness": "happiness joy nature", "happy": "happiness joy nature",
+        "purpose": "purpose path sunrise", "meaning": "meaningful life light",
+        "mindset": "mindset focus alone", "action": "action movement city",
+        "character": "character strength alone", "attitude": "attitude sunrise energy",
+        "beginning": "new beginning sunrise", "start": "start new journey road",
+        "mistake": "mistake dark rain", "mistakes": "mistake dark rain",
+        "choice": "choice crossroads road", "path": "path road alone forest",
         "potential": "potential sunrise mountain", "growth": "growth nature sunrise",
         "discipline": "discipline focus dark", "focus": "focus alone thinking dark",
         "vision": "vision light future", "better": "better future sunrise",
@@ -1078,13 +1044,12 @@ def _quote_to_keyword(quote_text):
         "inspire": "inspiration sunrise light", "inspired": "inspiration sunrise light",
         "powerful": "power strength mountain", "power": "power strength mountain",
         "impossible": "impossible mountain climb", "possible": "possible sunrise hope",
-        "learn": "learning books knowledge", "learned": "learning books knowledge",
-        "kindness": "kindness light warmth", "kind": "kindness light warmth",
-        "respect": "respect dignity light", "trust": "trust calm nature",
-        "desire": "desire fire passion", "passion": "passion fire energy",
-        "energy": "energy sunrise motivation", "tired": "tired alone dark",
-        "heal": "healing light calm water", "healing": "healing light calm water",
-        "empty": "empty alone dark",
+        "learn": "learning books knowledge", "kindness": "kindness light warmth",
+        "kind": "kindness light warmth", "respect": "respect dignity light",
+        "trust": "trust calm nature", "desire": "desire fire passion",
+        "passion": "passion fire energy", "energy": "energy sunrise motivation",
+        "tired": "tired alone dark", "heal": "healing light calm water",
+        "healing": "healing light calm water", "empty": "empty alone dark",
     }
 
     STOPWORDS = {
@@ -1121,7 +1086,7 @@ def _quote_to_keyword(quote_text):
                 return phrase
 
     fallback = max(content, key=len) if content else "dark cinematic"
-    print(f"   🎨 Quote keyword (fallback word): '{fallback}'")
+    print(f"   🎨 Quote keyword (fallback): '{fallback}'")
     return fallback
 
 
@@ -1129,20 +1094,17 @@ def _quote_to_keyword(quote_text):
 # 🔟  Build the final YouTube Short
 # ─────────────────────────────────────────────
 def create_youtube_short(quote_text, author):
-    keyword = _quote_to_keyword(quote_text)
-
-    hook = get_hook()
+    keyword  = _quote_to_keyword(quote_text)
+    hook     = get_hook()
     segments = [hook] + split_into_segments(quote_text) + ["READ THAT AGAIN."]
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     tts_paths, durations, pause_ms, voice_gender = generate_audio_segments(segments, author)
     pause_s = pause_ms / 1000.0
 
-    seg_starts  = []
-    seg_durs    = []
-    cursor      = 0.0
-
-    for i, d in enumerate(durations[:-1]):
+    seg_starts, seg_durs = [], []
+    cursor = 0.0
+    for d in durations[:-1]:
         seg_starts.append(cursor)
         seg_durs.append(d + pause_s)
         cursor += d + pause_s
@@ -1170,20 +1132,19 @@ def create_youtube_short(quote_text, author):
         .crossfadeout(0.3)
     )
 
-    music_file  = random.choice(["music1.mp3", "music2.mp3", "music3.mp3"])
+    music_file    = random.choice(["music1.mp3", "music2.mp3", "music3.mp3"])
     audio_clip, _ = assemble_audio(tts_paths, durations, pause_ms, music_file)
 
     first_frame_path = "/tmp/thumb_bg.png"
     clip.save_frame(first_frame_path, t=0.5)
-    thumb_path = generate_thumbnail(hook, quote_text, author, first_frame_path,
-                                    size=(W, H))
+    thumb_path = generate_thumbnail(hook, quote_text, author, first_frame_path, size=(W, H))
 
     main_video = CompositeVideoClip([clip] + slide_clips + [author_clip])
     main_video = main_video.set_audio(audio_clip)
 
-    thumb_clip  = ImageClip(thumb_path).set_duration(1.0)
-    silent_1s   = AudioSegment.silent(duration=1000)
-    tmp_silence = "/tmp/silence_1s.wav"
+    thumb_clip   = ImageClip(thumb_path).set_duration(1.0)
+    silent_1s    = AudioSegment.silent(duration=1000)
+    tmp_silence  = "/tmp/silence_1s.wav"
     silent_1s.export(tmp_silence, format="wav")
     silence_clip = AudioFileClip(tmp_silence).set_duration(1.0)
     thumb_clip   = thumb_clip.set_audio(silence_clip)
@@ -1238,7 +1199,7 @@ def upload_to_youtube(video_path, thumb_path=None, author=''):
                 "quotes", author.lower(), author_tag_low,
                 "inspirational quotes", "mindset",
             ],
-            "categoryId":  "22",
+            "categoryId": "22",
         },
         "status": {"privacyStatus": "public"},
     }
@@ -1251,7 +1212,7 @@ def upload_to_youtube(video_path, thumb_path=None, author=''):
     )
     video_id = resp["id"]
     print(f"✅ Uploaded! https://youtube.com/shorts/{video_id}")
-    print("🖼  Thumbnail is frame 0 — go to YouTube Studio > Details > Thumbnail to select it.")
+    print("🖼  Thumbnail is frame 0 — select it in YouTube Studio > Details > Thumbnail.")
     return video_id
 
 
@@ -1266,26 +1227,40 @@ def main():
 
     if "--reset" in sys.argv:
         reset_all()
-        print("✅ All quotes reset to pending.")
+        print("✅ All quotes reset to pending in quotes.py")
         return
 
     # ── Normal run ────────────────────────────────────────────────────────────
     quote_text, author, quote_id = get_quote()
-    print(f"💡 Quote : {quote_text}")
+    print(f"\n💡 Quote : {quote_text}")
     print(f"✍️  Author: {author}")
-    if quote_id is not None:
-        print(f"🔖 Quote ID: {quote_id}  (from default quotes)")
 
-    # Generate the video
+    # ── STATUS CHECK: guard against double-posting ───────────────────────────
+    # Only applies to default quotes (quote_id is None for live API quotes).
+    if quote_id is not None:
+        print(f"🔖 Quote ID: {quote_id}  (default quote)")
+        if is_posted(quote_id):
+            print(
+                f"\n🚫 ABORTED — Quote id={quote_id} is already marked as POSTED in quotes.py.\n"
+                "   This prevents accidental duplicate uploads.\n"
+                "   Run  python main.py --status  to see what's pending,\n"
+                "   or   python main.py --reset   to start the cycle again."
+            )
+            sys.exit(1)
+        print("✅ Status check passed — quote is pending, safe to post.")
+    else:
+        print("🌐 API quote — no status check needed.")
+
+    # ── Generate video ────────────────────────────────────────────────────────
     video_path, thumb_path = create_youtube_short(quote_text, author)
 
-    # Upload
+    # ── Upload ────────────────────────────────────────────────────────────────
     upload_to_youtube(video_path, thumb_path, author=author)
 
-    # ── Mark default quote as posted AFTER successful upload ─────────────────
+    # ── Mark as posted AFTER successful upload ────────────────────────────────
     if quote_id is not None:
         mark_posted(quote_id)
-        print(f"\n📊 Updated status — run  python main.py --status  to see all quotes.")
+        print(f"\n📊 quotes.py updated — run  python main.py --status  to see all quotes.")
 
 
 if __name__ == "__main__":
