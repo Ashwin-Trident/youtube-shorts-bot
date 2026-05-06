@@ -3,17 +3,21 @@ quotes.py
 ─────────────────────────────────────────────────────────────
 Central store for all default quotes used by the YouTube Shorts bot.
 
-Each entry is a dict:
+Each entry is a dict with these fields:
   {
-    "id"     : unique int  (never reuse / reorder),
-    "text"   : the quote string,
-    "author" : speaker name,
+    "id"        : unique int  (never reuse / reorder),
+    "text"      : the quote string,
+    "author"    : speaker name,
+    "status"    : "pending" | "posted"   ← updated by quote_status.py after upload
+    "posted_at" : ISO-8601 UTC string, or None
   }
 
-Status (posted / pending) is tracked separately in quotes_status.json
-so this file stays clean and version-control friendly.
+quote_status.py reads and writes the "status" / "posted_at" fields
+directly in this file so everything stays in one place — no separate JSON needed.
 
-To add more quotes: append to DEFAULT_QUOTES with a new unique id.
+To add a new quote: append a new dict with a unique id,
+status="pending", and posted_at=None.
+─────────────────────────────────────────────────────────────
 """
 
 DEFAULT_QUOTES = [
@@ -25,6 +29,8 @@ DEFAULT_QUOTES = [
             "I went through those tough times when I was younger."
         ),
         "author": "LeBron James",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 2,
@@ -35,6 +41,8 @@ DEFAULT_QUOTES = [
             "It's what I ask of myself."
         ),
         "author": "LeBron James",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 3,
@@ -44,6 +52,8 @@ DEFAULT_QUOTES = [
             "At the end of the day, I live with them."
         ),
         "author": "LeBron James",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Michael Jordan ────────────────────────────────────────────────────
     {
@@ -54,6 +64,8 @@ DEFAULT_QUOTES = [
             "Stay reachable. Stay in touch. Don't isolate."
         ),
         "author": "Michael Jordan",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 5,
@@ -63,6 +75,8 @@ DEFAULT_QUOTES = [
             "When I'm out there, no one can bother me."
         ),
         "author": "Michael Jordan",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 6,
@@ -72,12 +86,16 @@ DEFAULT_QUOTES = [
             "or work around it."
         ),
         "author": "Michael Jordan",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Cristiano Ronaldo ─────────────────────────────────────────────────
     {
         "id": 7,
         "text": "Your love makes me strong, your hate makes me unstoppable.",
         "author": "Cristiano Ronaldo",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 8,
@@ -86,6 +104,8 @@ DEFAULT_QUOTES = [
             "but I like to feel that I have done my best."
         ),
         "author": "Cristiano Ronaldo",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Pelé ──────────────────────────────────────────────────────────────
     {
@@ -96,12 +116,16 @@ DEFAULT_QUOTES = [
             "or learning to do."
         ),
         "author": "Pele",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Sachin Tendulkar ──────────────────────────────────────────────────
     {
         "id": 10,
         "text": "People throw stones at you and you convert them into milestones.",
         "author": "Sachin Tendulkar",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Muhammad Ali ──────────────────────────────────────────────────────
     {
@@ -112,13 +136,15 @@ DEFAULT_QUOTES = [
             "You kill my dog, you better hide your cat."
         ),
         "author": "Muhammad Ali",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 12,
-        "text": (
-            "Don't count the days, make the days count."
-        ),
+        "text": "Don't count the days, make the days count.",
         "author": "Muhammad Ali",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Kobe Bryant ───────────────────────────────────────────────────────
     {
@@ -128,6 +154,8 @@ DEFAULT_QUOTES = [
             "they can be great in whatever they want to do."
         ),
         "author": "Kobe Bryant",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 14,
@@ -136,6 +164,8 @@ DEFAULT_QUOTES = [
             "for me to rise."
         ),
         "author": "Kobe Bryant",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 15,
@@ -144,6 +174,8 @@ DEFAULT_QUOTES = [
             "their lack of success."
         ),
         "author": "Kobe Bryant",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Serena Williams ───────────────────────────────────────────────────
     {
@@ -153,6 +185,8 @@ DEFAULT_QUOTES = [
             "they can recover when they fall."
         ),
         "author": "Serena Williams",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 17,
@@ -161,6 +195,8 @@ DEFAULT_QUOTES = [
             "smiling. If you smile, things will work out."
         ),
         "author": "Serena Williams",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Roger Federer ─────────────────────────────────────────────────────
     {
@@ -170,14 +206,16 @@ DEFAULT_QUOTES = [
             "love the sport and you try to be the best you can at it."
         ),
         "author": "Roger Federer",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Usain Bolt ────────────────────────────────────────────────────────
     {
         "id": 19,
-        "text": (
-            "I know what I can do, so I never doubt myself."
-        ),
+        "text": "I know what I can do, so I never doubt myself.",
         "author": "Usain Bolt",
+        "status": "pending",
+        "posted_at": None,
     },
     {
         "id": 20,
@@ -187,6 +225,8 @@ DEFAULT_QUOTES = [
             "your best, and the rest will take care of itself."
         ),
         "author": "Usain Bolt",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Tiger Woods ───────────────────────────────────────────────────────
     {
@@ -196,12 +236,16 @@ DEFAULT_QUOTES = [
             "the exciting part."
         ),
         "author": "Tiger Woods",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Wayne Gretzky ─────────────────────────────────────────────────────
     {
         "id": 22,
         "text": "You miss one hundred percent of the shots you don't take.",
         "author": "Wayne Gretzky",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Mia Hamm ─────────────────────────────────────────────────────────
     {
@@ -211,6 +255,8 @@ DEFAULT_QUOTES = [
             "What makes you better is how you react to it."
         ),
         "author": "Mia Hamm",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Jesse Owens ───────────────────────────────────────────────────────
     {
@@ -221,13 +267,15 @@ DEFAULT_QUOTES = [
             "and effort."
         ),
         "author": "Jesse Owens",
+        "status": "pending",
+        "posted_at": None,
     },
     # ── Billie Jean King ─────────────────────────────────────────────────
     {
         "id": 25,
-        "text": (
-            "Champions keep playing until they get it right."
-        ),
+        "text": "Champions keep playing until they get it right.",
         "author": "Billie Jean King",
+        "status": "pending",
+        "posted_at": None,
     },
 ]
