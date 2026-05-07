@@ -625,7 +625,7 @@ def build_15s_clip(keyword, target=15.0, author=None, gender='male'):
     if not speaker_path:
         speaking_keywords = {
             "male":   ["Football","Basketball","Soccer","Workout","Gym Workout","basketball action","ai generated","Fighting","skating"],
-            "female": ["Dance","Basketball","ai generated","Fighting","babies","skating"],
+            "female": ["Basketball","ai generated","Fighting","babies","skating"],
         }
         kw_list = speaking_keywords.get(gender, speaking_keywords["male"])
         speaking_urls = []
