@@ -109,8 +109,8 @@ DEFAULT_QUOTES = [
         "id": 13,
         "text": "The most important thing is to try and inspire people so that they can be great in whatever they want to do.",
         "author": "Kobe Bryant",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-05-18T12:26:27",
     },
     {
         "id": 14,
