@@ -102,8 +102,8 @@ DEFAULT_QUOTES = [
         "id": 12,
         "text": "Don't count the days, make the days count.",
         "author": "Muhammad Ali",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-05-18T06:48:47",
     },
     {
         "id": 13,
