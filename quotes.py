@@ -74,8 +74,8 @@ DEFAULT_QUOTES = [
         "id": 8,
         "text": "Talent without working hard is nothing. I'm not perfectionistic, but I like to feel that I have done my best.",
         "author": "Cristiano Ronaldo",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-06-03T02:43:11",
     },
     {
         "id": 9,
