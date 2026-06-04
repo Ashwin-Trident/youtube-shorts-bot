@@ -123,8 +123,8 @@ DEFAULT_QUOTES = [
         "id": 15,
         "text": "I have nothing in common with lazy people who blame others for their lack of success.",
         "author": "Kobe Bryant",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-06-04T11:49:37",
     },
     {
         "id": 16,
