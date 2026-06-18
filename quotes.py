@@ -32,8 +32,8 @@ DEFAULT_QUOTES = [
         "id": 2,
         "text": "Ask me to play. I'll play. Ask me to shoot. I'll shoot. Ask me to pass. I'll pass. Ask me to steal, block out, sacrifice, lead, dominate. Anything. But it's not what you ask of me. It's what I ask of myself.",
         "author": "LeBron James",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-06-18T20:22:25",
     },
     {
         "id": 3,
