@@ -193,7 +193,7 @@ DEFAULT_QUOTES = [
         "id": 25,
         "text": "Champions keep playing until they get it right.",
         "author": "Billie Jean King",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-06-22T08:52:15",
     },
 ]
