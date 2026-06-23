@@ -67,8 +67,8 @@ DEFAULT_QUOTES = [
         "id": 7,
         "text": "Your love makes me strong, your hate makes me unstoppable.",
         "author": "Cristiano Ronaldo",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-06-23T17:15:00",
     },
     {
         "id": 8,
