@@ -60,8 +60,8 @@ DEFAULT_QUOTES = [
         "id": 6,
         "text": "Obstacles don't have to stop you. If you run into a wall, don't turn around and give up. Figure out how to climb it, go through it, or work around it.",
         "author": "Michael Jordan",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-06-23T14:29:15",
     },
     {
         "id": 7,
