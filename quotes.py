@@ -39,8 +39,8 @@ DEFAULT_QUOTES = [
         "id": 3,
         "text": "I always say, decisions I make, I live with them. There's always ways you can correct them or ways you can do them better. At the end of the day, I live with them.",
         "author": "LeBron James",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-07-08T08:12:15",
     },
     {
         "id": 4,
