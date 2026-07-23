@@ -137,8 +137,8 @@ DEFAULT_QUOTES = [
         "id": 17,
         "text": "I've had to learn to fight all my life — got to learn to keep smiling. If you smile, things will work out.",
         "author": "Serena Williams",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-07-23T13:26:23",
     },
     {
         "id": 18,
