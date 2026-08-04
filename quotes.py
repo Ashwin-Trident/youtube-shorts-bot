@@ -25,8 +25,8 @@ DEFAULT_QUOTES = [
         "id": 1,
         "text": "I think the reason why I am the person who I am today is because I went through those tough times when I was younger.",
         "author": "LeBron James",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-04T05:42:25",
     },
     {
         "id": 2,
