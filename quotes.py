@@ -53,8 +53,8 @@ DEFAULT_QUOTES = [
         "id": 5,
         "text": "The basketball court for me, during a game, is the most peaceful place I can imagine. On the basketball court, I worry about nothing. When I'm out there, no one can bother me.",
         "author": "Michael Jordan",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-04T16:52:50",
     },
     {
         "id": 6,
