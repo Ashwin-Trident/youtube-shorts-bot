@@ -186,8 +186,8 @@ DEFAULT_QUOTES = [
         "id": 24,
         "text": "We all have dreams. But in order to make dreams come into reality, it takes an awful lot of determination, dedication, self-discipline, and effort.",
         "author": "Jesse Owens",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-07T07:04:50",
     },
     {
         "id": 25,
