@@ -46,8 +46,8 @@ DEFAULT_QUOTES = [
         "id": 4,
         "text": "To be successful you have to be selfish, or else you never achieve. And once you get to your highest level, then you have to be unselfish. Stay reachable. Stay in touch. Don't isolate.",
         "author": "Michael Jordan",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-14T12:46:53",
     },
     {
         "id": 5,
