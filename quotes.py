@@ -179,8 +179,8 @@ DEFAULT_QUOTES = [
         "id": 23,
         "text": "Failure happens all the time. It happens every day in practice. What makes you better is how you react to it.",
         "author": "Mia Hamm",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-16T21:14:54",
     },
     {
         "id": 24,
