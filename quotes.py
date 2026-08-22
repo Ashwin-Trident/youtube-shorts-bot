@@ -130,8 +130,8 @@ DEFAULT_QUOTES = [
         "id": 16,
         "text": "I really think a champion is defined not by their wins but by how they can recover when they fall.",
         "author": "Serena Williams",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-22T15:15:34",
     },
     {
         "id": 17,
