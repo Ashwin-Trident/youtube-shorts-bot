@@ -81,8 +81,8 @@ DEFAULT_QUOTES = [
         "id": 9,
         "text": "Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing or learning to do.",
         "author": "Pele",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-08-30T08:44:50",
     },
     {
         "id": 10,
