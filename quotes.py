@@ -88,8 +88,8 @@ DEFAULT_QUOTES = [
         "id": 10,
         "text": "People throw stones at you and you convert them into milestones.",
         "author": "Sachin Tendulkar",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-09T13:19:00",
     },
     {
         "id": 11,
