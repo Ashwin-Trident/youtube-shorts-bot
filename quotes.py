@@ -172,8 +172,8 @@ DEFAULT_QUOTES = [
         "id": 22,
         "text": "You miss one hundred percent of the shots you don't take.",
         "author": "Wayne Gretzky",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-11T18:05:00",
     },
     {
         "id": 23,
