@@ -119,7 +119,7 @@ DEFAULT_QUOTES = [
         "text": "Everything negative — pressure, challenges — is all an opportunity for me to rise.",
         "author": "Kobe Bryant",
         "status": "posted",
-        "posted_at": "2026-09-19T19:48:53",
+        "posted_at": "2026-09-24T18:49:39",
     },
     {
         "id": 15,
