@@ -29,8 +29,8 @@ DEFAULT_QUOTES = [
         "text": "ഒരു ചാമ്പ്യനെ നിർവചിക്കുന്നത് വിജയങ്ങളല്ല, വീഴുമ്പോൾ എങ്ങനെ തിരിച്ചുവരുന്നു എന്നതാണ്.",
         "author": "Serena Williams",
         "author_ml": "സെറീന വില്യംസ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-24T08:19:31",
     },
     {
         "id": 2,
