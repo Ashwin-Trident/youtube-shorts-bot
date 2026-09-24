@@ -20,7 +20,10 @@ from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
 from pydub import AudioSegment
 
-from quote_status import get_next_quote, mark_posted, reset_all, show_status
+from quote_status import (
+    LANGUAGES, get_next_quote, mark_posted, reset_all, show_status,
+    last_posted_at, pending_count, quotes_file,
+)
 
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.LANCZOS
@@ -64,6 +67,45 @@ BOLD_FONT   = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 ITALIC_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"
 if not os.path.exists(ITALIC_FONT):
     ITALIC_FONT = BOLD_FONT
+# Needs the fonts-noto-core apt package (installed by the workflow)
+MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
+
+
+# ─────────────────────────────────────────────
+# Per-language settings
+# ─────────────────────────────────────────────
+LANG_CONFIG = {
+    "en": {
+        "voices":        EDGE_VOICES,
+        "hooks":         ["{a} said this.", "Listen to {a}.", "Remember what {a} said.",
+                          "{a} knew this.", "Words from {a}."],
+        "ending":        "READ THAT AGAIN.",
+        "caption_font":  BOLD_FONT,
+        "author_font":   ITALIC_FONT,
+        "caption_chars": 16,
+        "line_spacing":  1.22,
+        "uppercase":     True,
+        "hashtags":      "#shorts #motivation #sportsmotivation #mindset #quotes #dailymotivation",
+        "tags":          ["motivation", "shorts", "sports motivation", "quotes",
+                          "motivational quotes", "mindset"],
+    },
+    "ml": {
+        "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
+        # "{a} പറഞ്ഞത് കേൾക്കൂ." = "Listen to what {a} said."
+        # "{a} പറഞ്ഞത് ഓർക്കുക." = "Remember what {a} said."
+        "hooks":         ["{a} പറഞ്ഞത് കേൾക്കൂ.", "{a} പറഞ്ഞത് ഓർക്കുക."],
+        "ending":        "ഒന്നുകൂടി വായിക്കൂ.",   # "Read it once more."
+        "caption_font":  MALAYALAM_FONT,
+        "author_font":   MALAYALAM_FONT,
+        "caption_chars": 24,     # Malayalam words are long in code points
+        "line_spacing":  1.55,   # room for Malayalam vowel signs above/below
+        "uppercase":     False,
+        "hashtags":      "#shorts #malayalam #malayalammotivation #motivation "
+                         "#sportsmotivation #malayalamquotes",
+        "tags":          ["malayalam", "malayalam motivation", "malayalam quotes",
+                          "motivation malayalam", "shorts", "sports motivation"],
+    },
+}
 
 
 # ─────────────────────────────────────────────
@@ -142,36 +184,52 @@ def author_profile(author):
 # ─────────────────────────────────────────────
 # 1️⃣  Get a quote
 # ─────────────────────────────────────────────
-def get_quote():
+def pick_language():
+    """
+    Language for this run: --lang / BOT_LANGUAGE override, otherwise alternate —
+    whichever language was posted least recently goes next.
+    """
+    forced = None
+    if "--lang" in sys.argv:
+        forced = sys.argv[sys.argv.index("--lang") + 1]
+    elif os.environ.get("BOT_LANGUAGE", "auto") not in ("", "auto"):
+        forced = os.environ["BOT_LANGUAGE"]
+    if forced:
+        if forced not in LANGUAGES:
+            sys.exit(f"❌ Unknown language '{forced}' — use one of {', '.join(LANGUAGES)}")
+        return forced
+
+    available = [l for l in LANGUAGES if pending_count(l) > 0]
+    if not available:
+        return "en"   # get_quote() reports that every list is used up
+    lang = min(available, key=last_posted_at)
+    print(f"🌐 Language: {LANGUAGES[lang]['name']}  (posted least recently)")
+    return lang
+
+
+def get_quote(lang):
     try:
-        quote_id, text, author = get_next_quote()
+        quote = get_next_quote(lang)
     except RuntimeError as e:
         # Never recycle old quotes — repeated uploads get the channel
         # flagged as repetitive content. Fail loudly so new quotes get added.
         print(e)
         sys.exit(1)
-    print(f"📋 Quote source: quotes.py (id={quote_id})")
-    return text, author, quote_id
+    print(f"📋 Quote source: {os.path.basename(quotes_file(lang))} (id={quote['id']})")
+    return quote
 
 
 # ─────────────────────────────────────────────
 # 1b️⃣  Hook line — names the author so viewers know who it's about
 # ─────────────────────────────────────────────
-def get_hook(author):
-    hooks = [
-        "{a} said this.",
-        "Listen to {a}.",
-        "Remember what {a} said.",
-        "{a} knew this.",
-        "Words from {a}.",
-    ]
-    return random.choice(hooks).format(a=author)
+def get_hook(author, lang="en"):
+    return random.choice(LANG_CONFIG[lang]["hooks"]).format(a=author)
 
 
 # ─────────────────────────────────────────────
 # 2️⃣  Split quote into segments
 # ─────────────────────────────────────────────
-def split_into_segments(quote_text, min_words=3):
+def split_into_segments(quote_text, min_words=3, uppercase=True):
     import re
     raw      = re.split(r'[.,!?]+', quote_text)
     segments = [s.strip() for s in raw if s.strip()]
@@ -189,8 +247,9 @@ def split_into_segments(quote_text, min_words=3):
             merged[-1] += ", " + buf
         else:
             merged.append(buf)
-    segments = [s.upper() for s in merged if s]
-    return segments if segments else [quote_text.upper()]
+    case = str.upper if uppercase else str
+    segments = [case(s) for s in merged if s]
+    return segments if segments else [case(quote_text)]
 
 
 # ─────────────────────────────────────────────
@@ -226,7 +285,8 @@ def _wrap_words(words, font, max_w):
     return lines
 
 
-def render_caption_image(words, highlight_idx, frame_id, size=(1080, 1920), font_path=BOLD_FONT):
+def render_caption_image(words, highlight_idx, frame_id, size=(1080, 1920),
+                         font_path=BOLD_FONT, line_spacing=1.22):
     W, H = size
     # Keep clear of the Shorts like/comment buttons on the right edge
     max_w = W * 0.78
@@ -241,7 +301,7 @@ def render_caption_image(words, highlight_idx, frame_id, size=(1080, 1920), font
     img    = Image.new("RGBA", size, (0, 0, 0, 0))
     draw   = ImageDraw.Draw(img)
     stroke = max(4, font.size // 11)
-    line_h = int(font.size * 1.22)
+    line_h = int(font.size * line_spacing)
     y      = int(H * 0.52) - (line_h * len(lines)) // 2
     space  = font.getlength(" ")
 
@@ -265,11 +325,12 @@ def render_caption_image(words, highlight_idx, frame_id, size=(1080, 1920), font
 # ─────────────────────────────────────────────
 # 3b️⃣  Caption clips
 # ─────────────────────────────────────────────
-def build_quote_slides(segments, start_times, durations, size):
+def build_quote_slides(segments, start_times, durations, size, lang="en"):
+    cfg      = LANG_CONFIG[lang]
     slides   = []
     frame_id = 0
     for seg_i, (seg, seg_start, seg_dur) in enumerate(zip(segments, start_times, durations)):
-        words = seg.upper().split()
+        words = (seg.upper() if cfg["uppercase"] else seg).split()
         if not words:
             continue
         char_counts = [max(len(w), 1) for w in words]
@@ -277,10 +338,12 @@ def build_quote_slides(segments, start_times, durations, size):
         preview = seg[:50] + ("..." if len(seg) > 50 else "")
         print(f"   📝 Segment {seg_i+1}: [{seg_start:.2f}s → {seg_start+seg_dur:.2f}s]  \"{preview}\"  ({len(words)} words)")
         word_start = seg_start
-        for chunk in _chunk_words(words):
+        for chunk in _chunk_words(words, max_chars=cfg["caption_chars"]):
             for w_i, word in enumerate(chunk):
                 wdur = seg_dur * (max(len(word), 1) / total_chars)
-                img_path = render_caption_image(chunk, w_i, frame_id, size=size)
+                img_path = render_caption_image(chunk, w_i, frame_id, size=size,
+                                                font_path=cfg["caption_font"],
+                                                line_spacing=cfg["line_spacing"])
                 slides.append(ImageClip(img_path).set_start(word_start).set_duration(wdur))
                 word_start += wdur
                 frame_id   += 1
@@ -290,16 +353,16 @@ def build_quote_slides(segments, start_times, durations, size):
 # ─────────────────────────────────────────────
 # 4️⃣  Author name overlay (top of frame, clear of the Shorts UI)
 # ─────────────────────────────────────────────
-def create_author_image(author, size=(1080, 1920), font_path=ITALIC_FONT):
+def create_author_image(author, size=(1080, 1920), font_path=ITALIC_FONT, uppercase=True):
     W, H = size
     img  = Image.new("RGBA", size, (0, 0, 0, 0))
-    text = f"— {author.upper()}"
+    text = f"— {author.upper() if uppercase else author}"
     font = None
     tw = th = 0
     for fs in range(int(W * 0.056), 26, -2):   # ~60px at 1080 wide
         font = ImageFont.truetype(font_path, fs)
         bbox = ImageDraw.Draw(img).textbbox((0, 0), text, font=font)
-        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        tw, th = bbox[2] - bbox[0], bbox[3]
         if tw <= W * 0.80:
             break
     tx, ty = (W - tw) // 2, int(H * 0.17)
@@ -460,7 +523,8 @@ def _clean_text(text):
     import re
     t = text.replace("—", " ").replace("–", " ").replace("…", " ")
     t = t.replace("“", "").replace("”", "").replace("’", "'")
-    t = re.sub(r"[^a-zA-Z0-9 \',\.!\?]", " ", t)
+    # Keep Malayalam letters (U+0D00–U+0D7F) and the zero-width joiners it relies on
+    t = re.sub(r"[^a-zA-Z0-9\u0D00-\u0D7F\u200C\u200D \',\.!\?]", " ", t)
     t = re.sub(r"[\',\.!\?]{2,}", ".", t)
     t = re.sub(r" {2,}", " ", t).strip()
     t = re.sub(r"[\',\.!\? ]+$", "", t) + "."
@@ -513,8 +577,8 @@ def _synth_coqui(text, path, tts_engine, speaker):
     return len(AudioSegment.from_file(path)) / 1000.0
 
 
-def _pick_voice(gender):
-    voice = random.choice(EDGE_VOICES[gender])
+def _pick_voice(gender, lang="en"):
+    voice = random.choice(LANG_CONFIG[lang]["voices"][gender])
     print(f"🎙  Voice: {voice}  ({gender}, matches author)")
     return voice
 
@@ -526,6 +590,8 @@ def _synth_one(text, path, voice, coqui_cfg):
         return dur
     except Exception as e:
         print(f"   ⚠️  edge-tts failed: {e}")
+        if coqui_cfg is None:
+            raise RuntimeError(f"edge-tts failed and there is no offline fallback for this language: {e}")
     try:
         tts = TTS(model_name=coqui_cfg["model"], progress_bar=False, gpu=False)
         dur = _synth_coqui(text, path, tts, coqui_cfg["speaker_idx"])
@@ -535,10 +601,11 @@ def _synth_one(text, path, voice, coqui_cfg):
         raise RuntimeError(f"All TTS engines failed: {e}")
 
 
-def generate_audio_segments(segments, gender):
+def generate_audio_segments(segments, gender, lang="en"):
     PAUSE_MS    = 150
-    voice       = _pick_voice(gender)
-    coqui_cfg   = VOICE_COQUI[gender]
+    voice       = _pick_voice(gender, lang)
+    # The offline Coqui models are English-only
+    coqui_cfg   = VOICE_COQUI[gender] if lang == "en" else None
     paths, durs = [], []
     for i, seg in enumerate(segments):
         path = f"/tmp/tts_seg_{i:02d}.wav"
@@ -573,13 +640,18 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
 # ─────────────────────────────────────────────
 # 9️⃣  Build YouTube Short
 # ─────────────────────────────────────────────
-def create_youtube_short(quote_text, author):
-    sport, gender = author_profile(author)
-    hook     = get_hook(author)
-    segments = [hook] + split_into_segments(quote_text) + ["READ THAT AGAIN."]
+def create_youtube_short(quote, lang="en"):
+    cfg        = LANG_CONFIG[lang]
+    quote_text = quote["text"]
+    # Name as spoken/shown in this language; footage + voice use the English name
+    shown_name = quote.get(f"author_{lang}", quote["author"])
+    sport, gender = author_profile(quote["author"])
+    hook     = get_hook(shown_name, lang)
+    segments = ([hook] + split_into_segments(quote_text, uppercase=cfg["uppercase"])
+                + [cfg["ending"]])
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
-    tts_paths, durations, pause_ms = generate_audio_segments(segments, gender)
+    tts_paths, durations, pause_ms = generate_audio_segments(segments, gender, lang)
     pause_s = pause_ms / 1000.0
 
     seg_starts, seg_durs = [], []
@@ -595,12 +667,13 @@ def create_youtube_short(quote_text, author):
     clip = build_background(sport, target=total_dur)
     W, H = clip.w, clip.h
 
-    slide_clips = build_quote_slides(segments, seg_starts, seg_durs, size=(W, H))
+    slide_clips = build_quote_slides(segments, seg_starts, seg_durs, size=(W, H), lang=lang)
 
     # Author name stays on screen for the whole quote (after the hook, before the loop line)
     author_start = seg_starts[1]
     author_clip = (
-        ImageClip(create_author_image(author, (W, H)))
+        ImageClip(create_author_image(shown_name, (W, H), font_path=cfg["author_font"],
+                                      uppercase=cfg["uppercase"]))
         .set_start(author_start)
         .set_duration(seg_starts[-1] - author_start)
         .crossfadein(0.3)
@@ -623,9 +696,13 @@ def create_youtube_short(quote_text, author):
 # ─────────────────────────────────────────────
 # 🔟  Title / description / tags
 # ─────────────────────────────────────────────
-def build_metadata(quote_text, author, sport):
+def build_metadata(quote, sport, lang="en"):
     """Searchable metadata: the author and quote in the title, full quote in the description."""
-    suffix = f" – {author} #shorts"
+    cfg        = LANG_CONFIG[lang]
+    quote_text = quote["text"]
+    author     = quote["author"]
+    shown_name = quote.get(f"author_{lang}")
+    suffix     = f" – {author} #shorts" + (f" #{LANGUAGES[lang]['name'].lower()}" if lang != "en" else "")
     budget = 100 - len(suffix) - 2   # YouTube title limit is 100 chars; 2 for the quote marks
     quote  = quote_text.strip()
     if len(quote) > budget:
@@ -634,13 +711,14 @@ def build_metadata(quote_text, author, sport):
 
     author_tag  = "#" + "".join(ch for ch in author if ch.isalnum())
     sport_tag   = f" #{sport.replace(' ', '')}" if sport else ""
+    byline      = f"{shown_name} ({author})" if shown_name else author
     description = (
-        f"\"{quote_text}\"\n— {author}\n\n"
-        f"{author_tag}{sport_tag} #shorts #motivation #sportsmotivation "
-        "#mindset #quotes #dailymotivation"
+        f"\"{quote_text}\"\n— {byline}\n\n"
+        f"{author_tag}{sport_tag} {cfg['hashtags']}"
     )
-    tags = ["motivation", "shorts", "sports motivation", "quotes",
-            "motivational quotes", "mindset", author, f"{author} quotes"]
+    tags = cfg["tags"] + [author, f"{author} quotes"]
+    if shown_name:
+        tags.append(shown_name)
     if sport:
         tags += [sport, f"{sport} motivation"]
     return title, description, tags
@@ -649,7 +727,7 @@ def build_metadata(quote_text, author, sport):
 # ─────────────────────────────────────────────
 # 1️⃣1️⃣  Upload to YouTube
 # ─────────────────────────────────────────────
-def upload_to_youtube(video_path, quote_text, author, sport):
+def upload_to_youtube(video_path, quote, sport, lang="en"):
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
@@ -666,7 +744,7 @@ def upload_to_youtube(video_path, quote_text, author, sport):
     creds.refresh(google.auth.transport.requests.Request())
     youtube = build("youtube", "v3", credentials=creds)
 
-    title, description, tags = build_metadata(quote_text, author, sport)
+    title, description, tags = build_metadata(quote, sport, lang)
     print(f"🏷  Title: {title}")
     body = {
         "snippet": {
@@ -674,6 +752,10 @@ def upload_to_youtube(video_path, quote_text, author, sport):
             "description": description,
             "tags":        tags,
             "categoryId":  "17",   # Sports
+            # Tells YouTube which viewers to recommend it to — essential on a
+            # channel that mixes English and Malayalam videos
+            "defaultLanguage":      lang,
+            "defaultAudioLanguage": lang,
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
     }
@@ -691,9 +773,9 @@ def upload_to_youtube(video_path, quote_text, author, sport):
 # ─────────────────────────────────────────────
 # 1️⃣2️⃣  Git commit — MUST be defined BEFORE main()
 # ─────────────────────────────────────────────
-def _git_commit_status(quote_id: int) -> bool:
+def _git_commit_status(quote_id: int, lang: str = "en") -> bool:
     """
-    Commit and push the updated quotes.py back to GitHub.
+    Commit and push the updated quote file back to GitHub.
     Called after mark_posted() so the status change survives the
     ephemeral GitHub Actions runner and is available on the next run.
     Safe locally: skips silently if not inside a git repo.
@@ -712,16 +794,18 @@ def _git_commit_status(quote_id: int) -> bool:
     _run(["git", "config", "user.name",  "github-actions[bot]"])
     _run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
 
-    stage = _run(["git", "add", "quotes.py"])
+    filename = os.path.basename(quotes_file(lang))
+    stage = _run(["git", "add", filename])
     if stage.returncode != 0:
         print(f"⚠️  git add failed: {stage.stderr.strip()}")
         return False
 
     if _run(["git", "diff", "--staged", "--quiet"]).returncode == 0:
-        print("ℹ️  quotes.py unchanged — nothing to commit.")
+        print(f"ℹ️  {filename} unchanged — nothing to commit.")
         return True
 
-    msg    = f"chore: mark quote id={quote_id} as posted [skip ci]"
+    label  = "" if lang == "en" else f"{LANGUAGES[lang]['name']} "
+    msg    = f"chore: mark {label}quote id={quote_id} as posted [skip ci]"
     commit = _run(["git", "commit", "-m", msg])
     if commit.returncode != 0:
         print(f"⚠️  git commit failed: {commit.stderr.strip()}")
@@ -735,7 +819,7 @@ def _git_commit_status(quote_id: int) -> bool:
         print(f"⚠️  git push failed: {push.stderr.strip()}")
         print("   Ensure the workflow has  permissions: contents: write")
         return False
-    print("🚀 quotes.py pushed to repo — status persisted for next run.")
+    print(f"🚀 {filename} pushed to repo — status persisted for next run.")
     return True
 
 
@@ -744,29 +828,30 @@ def _git_commit_status(quote_id: int) -> bool:
 # ─────────────────────────────────────────────
 def main():
     if "--status" in sys.argv:
-        show_status()
+        for lang in LANGUAGES:
+            show_status(lang)
         return
 
     if "--reset" in sys.argv:
-        reset_all()
-        print("✅ All quotes reset to pending in quotes.py")
+        reset_all(pick_language())
         return
 
-    quote_text, author, quote_id = get_quote()
-    print(f"\n💡 Quote : {quote_text}")
-    print(f"✍️  Author: {author}")
-    print(f"🔖 Quote ID: {quote_id}")
+    lang  = pick_language()
+    quote = get_quote(lang)
+    print(f"\n💡 Quote : {quote['text']}")
+    print(f"✍️  Author: {quote['author']}")
+    print(f"🔖 Quote ID: {quote['id']}  ({LANGUAGES[lang]['name']})")
 
-    video_path, sport = create_youtube_short(quote_text, author)
-    upload_to_youtube(video_path, quote_text, author, sport)
+    video_path, sport = create_youtube_short(quote, lang)
+    upload_to_youtube(video_path, quote, sport, lang)
 
-    mark_posted(quote_id)
-    if not _git_commit_status(quote_id):
+    mark_posted(quote["id"], lang)
+    if not _git_commit_status(quote["id"], lang):
         # The video is live but the status wasn't saved — fail the job so it's
         # noticed before the next run re-posts the same quote.
-        print(f"\n❌ Quote id={quote_id} was uploaded but its status could not be pushed.")
+        print(f"\n❌ Quote id={quote['id']} was uploaded but its status could not be pushed.")
         sys.exit(1)
-    print(f"\n📊 quotes.py updated — run  python youtube_bot.py --status  to see all quotes.")
+    print(f"\n📊 Quote files updated — run  python youtube_bot.py --status  to see all quotes.")
 
 
 if __name__ == "__main__":

@@ -3,63 +3,93 @@ quote_status.py
 ─────────────────────────────────────────────────────────────
 Manages posted/pending status for default quotes.
 
-Status is stored DIRECTLY in quotes.py (the "status" and "posted_at"
+Status is stored DIRECTLY in the quote files (the "status" and "posted_at"
 fields on each quote dict) — no separate JSON file needed.
 
+One quote file per language:
+  "en" → quotes.py      (English)
+  "ml" → quotes_ml.py   (Malayalam)
+
 How it works:
-  - Reads DEFAULT_QUOTES from quotes.py at runtime (in-memory)
-  - Persists changes by rewriting the quotes.py file with updated
+  - Reads DEFAULT_QUOTES from the language's file at runtime
+  - Persists changes by rewriting that file with updated
     status/posted_at values using a safe write-then-replace strategy
 
-Public API
+Public API   (every function takes lang="en" | "ml", default "en")
 ──────────
-  get_next_quote()        → (id, text, author) | raises RuntimeError if all posted
-  is_posted(quote_id)     → bool — True if the quote is already posted
-  mark_posted(quote_id)   → updates status="posted" + posted_at in quotes.py
-  reset_all()             → resets every quote back to pending in quotes.py
-  show_status()           → prints a formatted summary table to stdout
+  get_next_quote(lang)        → quote dict | raises RuntimeError if all posted
+  is_posted(quote_id, lang)   → bool — True if the quote is already posted
+  mark_posted(quote_id, lang) → updates status="posted" + posted_at
+  reset_all(lang)             → resets every quote back to pending
+  last_posted_at(lang)        → most recent posted_at string, or "" if none
+  pending_count(lang)         → number of quotes still pending
+  show_status(lang)           → prints a formatted summary table to stdout
 ─────────────────────────────────────────────────────────────
 """
 
 import os
-import re
 import datetime
-import quotes as _quotes_module   # imported as module so we can reload it
+import importlib
 
 
 # ─────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────
 
-QUOTES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quotes.py")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+LANGUAGES = {
+    "en": {"module": "quotes",    "name": "English"},
+    "ml": {"module": "quotes_ml", "name": "Malayalam"},
+}
+
+# Fields written in this order; any extra fields (e.g. "author_ml") go
+# between "author" and "status".
+_HEAD_FIELDS = ("id", "text", "author")
+_TAIL_FIELDS = ("status", "posted_at")
 
 
-def _get_quotes():
+def quotes_file(lang: str = "en") -> str:
+    return os.path.join(BASE_DIR, LANGUAGES[lang]["module"] + ".py")
+
+
+def _get_quotes(lang: str = "en") -> list:
     """
-    Return a fresh copy of DEFAULT_QUOTES by reloading the quotes module.
-    This ensures we always see the latest on-disk state.
+    Return DEFAULT_QUOTES for a language, reloaded so we always see the
+    latest on-disk state.
     """
-    import importlib
-    importlib.reload(_quotes_module)
-    return _quotes_module.DEFAULT_QUOTES
+    module = importlib.import_module(LANGUAGES[lang]["module"])
+    importlib.reload(module)
+    return module.DEFAULT_QUOTES
 
 
-def _write_quotes(quotes: list) -> None:
+def _py_str(value: str) -> str:
+    """Double-quoted Python string literal (escapes backslashes and quotes)."""
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def _write_quotes(quotes: list, lang: str = "en") -> None:
     """
-    Regenerate the entire quotes.py file from a list of quote dicts.
+    Regenerate the entire quote file from a list of quote dicts.
     This is 100% reliable — no regex ID collision, no line-scanning fragility.
     """
+    path     = quotes_file(lang)
+    filename = os.path.basename(path)
+    language = LANGUAGES[lang]["name"]
+
     lines = []
     lines.append('"""\n')
-    lines.append('quotes.py\n')
+    lines.append(f'{filename}\n')
     lines.append('─────────────────────────────────────────────────────────────\n')
-    lines.append('Central store for all default quotes used by the YouTube Shorts bot.\n')
+    lines.append(f'Central store for all {language} quotes used by the YouTube Shorts bot.\n')
     lines.append('\n')
     lines.append('Each entry is a dict with these fields:\n')
     lines.append('  {\n')
     lines.append('    "id"        : unique int  (never reuse / reorder),\n')
     lines.append('    "text"      : the quote string,\n')
-    lines.append('    "author"    : speaker name,\n')
+    lines.append('    "author"    : speaker name in English (used for footage, voice and hashtags),\n')
+    if lang != "en":
+        lines.append(f'    "author_{lang}" : speaker name in {language} (spoken + shown on screen),\n')
     lines.append('    "status"    : "pending" | "posted"   ← updated by quote_status.py after upload\n')
     lines.append('    "posted_at" : ISO-8601 UTC string, or None\n')
     lines.append('  }\n')
@@ -77,33 +107,30 @@ def _write_quotes(quotes: list) -> None:
     lines.append('DEFAULT_QUOTES = [\n')
 
     for q in quotes:
-        posted_at_val = f'"{q["posted_at"]}"' if q["posted_at"] else "None"
-        # Escape any backslashes or quotes in text/author
-        text   = q["text"].replace('\\', '\\\\').replace('"', '\\"')
-        author = q["author"].replace('\\', '\\\\').replace('"', '\\"')
-
+        extra = [k for k in q if k not in _HEAD_FIELDS + _TAIL_FIELDS]
         lines.append('    {\n')
         lines.append(f'        "id": {q["id"]},\n')
-        lines.append(f'        "text": "{text}",\n')
-        lines.append(f'        "author": "{author}",\n')
+        for key in ("text", "author", *extra):
+            lines.append(f'        "{key}": {_py_str(q[key])},\n')
         lines.append(f'        "status": "{q["status"]}",\n')
+        posted_at_val = _py_str(q["posted_at"]) if q["posted_at"] else "None"
         lines.append(f'        "posted_at": {posted_at_val},\n')
         lines.append('    },\n')
 
     lines.append(']\n')
 
     # Safe atomic write: .tmp → rename
-    tmp_path = QUOTES_FILE + ".tmp"
+    tmp_path = path + ".tmp"
     with open(tmp_path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
-    os.replace(tmp_path, QUOTES_FILE)
+    os.replace(tmp_path, path)
 
 
-def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
+def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at, lang: str = "en") -> None:
     """
-    Update status and posted_at for a single quote by rewriting quotes.py.
+    Update status and posted_at for a single quote by rewriting its file.
     """
-    quotes = [dict(q) for q in _get_quotes()]   # fresh copy
+    quotes = [dict(q) for q in _get_quotes(lang)]   # fresh copy
 
     for q in quotes:
         if q["id"] == quote_id:
@@ -111,92 +138,91 @@ def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
             q["posted_at"] = new_posted_at
             break
     else:
-        raise ValueError(f"Quote id={quote_id} not found in DEFAULT_QUOTES")
+        raise ValueError(f"Quote id={quote_id} not found in {quotes_file(lang)}")
 
-    _write_quotes(quotes)
+    _write_quotes(quotes, lang)
 
 
 # ─────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────
 
-def is_posted(quote_id: int) -> bool:
+def is_posted(quote_id: int, lang: str = "en") -> bool:
     """
     Return True if the quote with this id already has status="posted".
-    Used by main.py to guard against double-posting.
     """
-    for q in _get_quotes():
+    for q in _get_quotes(lang):
         if q["id"] == quote_id:
             return q.get("status") == "posted"
     raise KeyError(f"Quote id={quote_id} not found.")
 
 
-def get_next_quote() -> tuple:
+def get_next_quote(lang: str = "en") -> dict:
     """
-    Return the first quote whose status == "pending" (lowest id order).
-
-    Returns:
-        (quote_id: int, text: str, author: str)
+    Return a copy of the first quote whose status == "pending" (file order).
 
     Raises:
         RuntimeError – if every quote has status="posted".
-                       Caller should call reset_all() to cycle.
     """
-    for q in _get_quotes():
+    for q in _get_quotes(lang):
         if q.get("status", "pending") == "pending":
-            print(f"📌 Next quote [id={q['id']}]: \"{q['text'][:60]}...\"  — {q['author']}")
-            return q["id"], q["text"], q["author"]
+            print(f"📌 Next {LANGUAGES[lang]['name']} quote [id={q['id']}]: \"{q['text'][:60]}...\"  — {q['author']}")
+            return dict(q)
 
     raise RuntimeError(
-        "🚫 All quotes have been posted!\n"
-        "   Add new quotes to quotes.py — re-posting old ones gets the channel\n"
-        "   flagged as repetitive content."
+        f"🚫 All {LANGUAGES[lang]['name']} quotes have been posted!\n"
+        f"   Add new quotes to {os.path.basename(quotes_file(lang))} — re-posting old ones\n"
+        "   gets the channel flagged as repetitive content."
     )
 
 
-def mark_posted(quote_id: int) -> None:
+def pending_count(lang: str = "en") -> int:
+    return sum(1 for q in _get_quotes(lang) if q.get("status", "pending") == "pending")
+
+
+def last_posted_at(lang: str = "en") -> str:
+    """Most recent posted_at for a language ("" if nothing posted yet)."""
+    return max((q.get("posted_at") or "" for q in _get_quotes(lang)), default="")
+
+
+def mark_posted(quote_id: int, lang: str = "en") -> None:
     """
     Set status="posted" and record the UTC timestamp for the given quote.
-    Writes the change directly into quotes.py.
-
-    Args:
-        quote_id: the integer id from DEFAULT_QUOTES
+    Writes the change directly into the language's quote file.
     """
     # Safety check — don't overwrite an already-posted entry
-    if is_posted(quote_id):
+    if is_posted(quote_id, lang):
         print(f"⚠️  Quote id={quote_id} is already marked as posted — skipping.")
         return
 
-    timestamp = datetime.datetime.utcnow().isoformat(timespec="seconds")
-    _patch_quote_in_file(quote_id, new_status="posted", new_posted_at=timestamp)
-    print(f"✅ Quote id={quote_id} marked as POSTED at {timestamp} UTC  (quotes.py updated)")
+    timestamp = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
+    _patch_quote_in_file(quote_id, new_status="posted", new_posted_at=timestamp, lang=lang)
+    print(f"✅ Quote id={quote_id} marked as POSTED at {timestamp} UTC  ({os.path.basename(quotes_file(lang))} updated)")
 
 
-def reset_all() -> None:
+def reset_all(lang: str = "en") -> None:
     """
     Reset every quote back to status="pending" with posted_at=None.
-    Rewrites quotes.py for all entries.
     """
-    quotes = [dict(q) for q in _get_quotes()]
-    print(f"🔄 Resetting {len(quotes)} quotes to pending...")
+    quotes = [dict(q) for q in _get_quotes(lang)]
+    print(f"🔄 Resetting {len(quotes)} {LANGUAGES[lang]['name']} quotes to pending...")
     for q in quotes:
         q["status"], q["posted_at"] = "pending", None
-    _write_quotes(quotes)
-    print("✅ All quotes reset to pending in quotes.py")
+    _write_quotes(quotes, lang)
+    print(f"✅ All quotes reset to pending in {os.path.basename(quotes_file(lang))}")
 
 
-def show_status() -> None:
+def show_status(lang: str = "en") -> None:
     """
-    Print a formatted summary table of all quote statuses to stdout,
-    reading directly from quotes.py.
+    Print a formatted summary table of all quote statuses to stdout.
     """
-    quotes  = _get_quotes()
+    quotes  = _get_quotes(lang)
     total   = len(quotes)
     posted  = sum(1 for q in quotes if q.get("status") == "posted")
     pending = total - posted
 
     print("\n" + "─" * 78)
-    print(f"  QUOTE STATUS  │  Total: {total}   ✅ Posted: {posted}   ⏳ Pending: {pending}")
+    print(f"  {LANGUAGES[lang]['name'].upper()} QUOTES  │  Total: {total}   ✅ Posted: {posted}   ⏳ Pending: {pending}")
     print("─" * 78)
     print(f"  {'Icon':<4} {'ID':>4}  {'Status':<8}  {'Posted At':<22}  {'Author':<20}  Quote")
     print("─" * 78)

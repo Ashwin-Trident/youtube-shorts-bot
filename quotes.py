@@ -1,13 +1,13 @@
 """
 quotes.py
 ─────────────────────────────────────────────────────────────
-Central store for all default quotes used by the YouTube Shorts bot.
+Central store for all English quotes used by the YouTube Shorts bot.
 
 Each entry is a dict with these fields:
   {
     "id"        : unique int  (never reuse / reorder),
     "text"      : the quote string,
-    "author"    : speaker name,
+    "author"    : speaker name in English (used for footage, voice and hashtags),
     "status"    : "pending" | "posted"   ← updated by quote_status.py after upload
     "posted_at" : ISO-8601 UTC string, or None
   }

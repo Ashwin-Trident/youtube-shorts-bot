@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '0 */8 * * *'   # 3 posts/day — well inside the YouTube upload quota (~6/day)
   workflow_dispatch:         # manual trigger
+    inputs:
+      language:
+        description: "Language for this run (auto alternates English/Malayalam)"
+        type: choice
+        options: [auto, en, ml]
+        default: auto
 
 # Never run two jobs at once — overlapping runs pick the same quote and double-post
 concurrency:
@@ -14,7 +20,7 @@ jobs:
   build-and-run:
     runs-on: ubuntu-latest
 
-    # ── Required so youtube_bot.py can commit quotes.py back to the repo ──
+    # ── Required so youtube_bot.py can commit quote status back to the repo 
     permissions:
       contents: write
 
@@ -32,11 +38,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      # ── 3. System deps (ffmpeg + espeak-ng in ONE apt call) ────────────────
+      # ── 3. System deps (ffmpeg, espeak-ng, Malayalam font) ─────────────────
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg espeak-ng
+          sudo apt-get install -y ffmpeg espeak-ng fonts-noto-core
 
       # ── 4. Pip cache (avoids re-downloading ~1 GB of TTS wheels every run) ─
       - name: Cache pip packages
@@ -79,6 +85,7 @@ jobs:
           CLIENT_SECRET:  ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN:  ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-        # youtube_bot.py commits + pushes the updated quotes.py itself, and
+          BOT_LANGUAGE:   ${{ inputs.language || 'auto' }}
+        # youtube_bot.py commits + pushes the updated quote file itself, and
         # fails the job if that push doesn't succeed.
         run: python -u youtube_bot.py
