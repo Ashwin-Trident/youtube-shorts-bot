@@ -202,8 +202,8 @@ DEFAULT_QUOTES = [
         "id": 26,
         "text": "Start where you are. Use what you have. Do what you can.",
         "author": "Arthur Ashe",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-24T07:47:26",
     },
     {
         "id": 27,
