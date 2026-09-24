@@ -98,7 +98,7 @@ DEFAULT_QUOTES = [
         "text": "I'm a fighter. I believe in the eye-for-an-eye business. I'm no cheek turner. I got no respect for a man who won't hit back. You kill my dog, you better hide your cat.",
         "author": "Muhammad Ali",
         "status": "posted",
-        "posted_at": "2026-09-19T07:44:56",
+        "posted_at": "2026-09-24T08:00:47",
     },
     {
         "id": 12,
