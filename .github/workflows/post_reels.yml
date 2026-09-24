@@ -2,14 +2,19 @@ name: YouTube Shorts Bot CI
 
 on:
   schedule:
-    - cron: '0 */3 * * *'   # every 3 hours
+    - cron: '0 */8 * * *'   # 3 posts/day — well inside the YouTube upload quota (~6/day)
   workflow_dispatch:         # manual trigger
+
+# Never run two jobs at once — overlapping runs pick the same quote and double-post
+concurrency:
+  group: youtube-shorts-bot
+  cancel-in-progress: false
 
 jobs:
   build-and-run:
     runs-on: ubuntu-latest
 
-    # ── Required so the workflow can commit quotes.py back to the repo ────
+    # ── Required so youtube_bot.py can commit quotes.py back to the repo ──
     permissions:
       contents: write
 
@@ -74,17 +79,6 @@ jobs:
           CLIENT_SECRET:  ${{ secrets.CLIENT_SECRET }}
           REFRESH_TOKEN:  ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        # youtube_bot.py commits + pushes the updated quotes.py itself, and
+        # fails the job if that push doesn't succeed.
         run: python -u youtube_bot.py
-
-      # ── 8. Commit updated quotes.py back to repo ───────────────────────────
-      # Without this step, the status="posted" change written by youtube_bot.py
-      # only exists on the ephemeral runner and is lost when the job ends.
-      # The next run would check out the original file and re-post the same quote.
-      - name: Commit updated quote status
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add quotes.py
-          # Only commit if quotes.py actually changed — avoids empty commits
-          git diff --staged --quiet || git commit -m "chore: mark quote as posted [skip ci]"
-          git push

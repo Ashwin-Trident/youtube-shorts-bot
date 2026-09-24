@@ -44,31 +44,11 @@ def _get_quotes():
     return _quotes_module.DEFAULT_QUOTES
 
 
-def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
+def _write_quotes(quotes: list) -> None:
     """
-    Update status and posted_at for a single quote by rewriting quotes.py.
-
-    Approach: load DEFAULT_QUOTES via importlib, mutate the target entry
-    in-memory, then regenerate the entire quotes.py file from scratch.
+    Regenerate the entire quotes.py file from a list of quote dicts.
     This is 100% reliable — no regex ID collision, no line-scanning fragility.
     """
-    import importlib
-    importlib.reload(_quotes_module)
-    quotes = list(_quotes_module.DEFAULT_QUOTES)   # fresh copy
-
-    # Find and update the target quote
-    found = False
-    for q in quotes:
-        if q["id"] == quote_id:
-            q["status"]    = new_status
-            q["posted_at"] = new_posted_at
-            found = True
-            break
-
-    if not found:
-        raise ValueError(f"Quote id={quote_id} not found in DEFAULT_QUOTES")
-
-    # Regenerate quotes.py content
     lines = []
     lines.append('"""\n')
     lines.append('quotes.py\n')
@@ -89,6 +69,8 @@ def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
     lines.append('\n')
     lines.append('To add a new quote: append a new dict with a unique id,\n')
     lines.append('status="pending", and posted_at=None.\n')
+    lines.append('Quotes are never re-posted: once every quote is posted the bot stops\n')
+    lines.append('with an error until new quotes are added here.\n')
     lines.append('─────────────────────────────────────────────────────────────\n')
     lines.append('"""\n')
     lines.append('\n')
@@ -115,6 +97,23 @@ def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
     with open(tmp_path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
     os.replace(tmp_path, QUOTES_FILE)
+
+
+def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at) -> None:
+    """
+    Update status and posted_at for a single quote by rewriting quotes.py.
+    """
+    quotes = [dict(q) for q in _get_quotes()]   # fresh copy
+
+    for q in quotes:
+        if q["id"] == quote_id:
+            q["status"]    = new_status
+            q["posted_at"] = new_posted_at
+            break
+    else:
+        raise ValueError(f"Quote id={quote_id} not found in DEFAULT_QUOTES")
+
+    _write_quotes(quotes)
 
 
 # ─────────────────────────────────────────────
@@ -150,7 +149,8 @@ def get_next_quote() -> tuple:
 
     raise RuntimeError(
         "🚫 All quotes have been posted!\n"
-        "   Call reset_all() to cycle back to the beginning."
+        "   Add new quotes to quotes.py — re-posting old ones gets the channel\n"
+        "   flagged as repetitive content."
     )
 
 
@@ -177,10 +177,11 @@ def reset_all() -> None:
     Reset every quote back to status="pending" with posted_at=None.
     Rewrites quotes.py for all entries.
     """
-    quotes = _get_quotes()
+    quotes = [dict(q) for q in _get_quotes()]
     print(f"🔄 Resetting {len(quotes)} quotes to pending...")
     for q in quotes:
-        _patch_quote_in_file(q["id"], new_status="pending", new_posted_at=None)
+        q["status"], q["posted_at"] = "pending", None
+    _write_quotes(quotes)
     print("✅ All quotes reset to pending in quotes.py")
 
 
