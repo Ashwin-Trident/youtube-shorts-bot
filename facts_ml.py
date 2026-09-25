@@ -246,8 +246,8 @@ DEFAULT_QUOTES = [
         "text": "നമ്മുടെ ക്ഷീരപഥ ഗാലക്സിയിൽ പതിനായിരം കോടിയിലധികം നക്ഷത്രങ്ങളുണ്ട്.",
         "topic": "space",
         "footage": "milky way",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-25T09:51:44",
     },
     {
         "id": 29,
