@@ -25,6 +25,7 @@ Public API   (every function takes lang="en" | "ml" | "ml_facts", default "en")
   reset_all(lang)             → resets every quote back to pending
   last_posted_at(lang)        → most recent posted_at string, or "" if none
   pending_count(lang)         → number of quotes still pending
+  get_pending(lang)           → list of pending quote dicts (file order)
   show_status(lang)           → prints a formatted summary table to stdout
 ─────────────────────────────────────────────────────────────
 """
@@ -200,6 +201,10 @@ def get_quote_by_id(quote_id: int, lang: str = "en") -> dict:
             print(f"📌 Chosen {LANGUAGES[lang]['name']} entry [id={q['id']}]: \"{q['text'][:60]}...\"  — {_byline(q)}")
             return dict(q)
     raise RuntimeError(f"🚫 {LANGUAGES[lang]['name']} id={quote_id} not found.")
+
+
+def get_pending(lang: str = "en") -> list:
+    return [dict(q) for q in _get_quotes(lang) if q.get("status", "pending") == "pending"]
 
 
 def pending_count(lang: str = "en") -> int:

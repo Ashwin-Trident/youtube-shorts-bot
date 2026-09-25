@@ -21,7 +21,7 @@ from TTS.api import TTS
 from pydub import AudioSegment
 
 from quote_status import (
-    LANGUAGES, get_next_quote, get_quote_by_id, mark_posted, reset_all, show_status,
+    LANGUAGES, get_next_quote, get_quote_by_id, get_pending, mark_posted, reset_all, show_status,
     last_posted_at, pending_count, quotes_file,
 )
 
@@ -136,17 +136,46 @@ LANG_CONFIG = {
 
 # ─────────────────────────────────────────────
 # Facts: on-screen topic label + fallback footage
+# Each fact Short covers up to FACTS_PER_VIDEO facts on one topic
+# (~25-30s: a numbered list keeps people watching to the end).
 # ─────────────────────────────────────────────
+FACTS_PER_VIDEO = 3
+ML_NUMBERS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്"}
+
+
+def fact_items(fact, lang):
+    """The chosen fact plus the next pending facts on the same topic."""
+    others = [f for f in get_pending(lang)
+              if f["topic"] == fact["topic"] and f["id"] != fact["id"]]
+    return [fact] + others[:FACTS_PER_VIDEO - 1]
+
+
+def fact_list_hook(topic, n):
+    """e.g. "ബഹിരാകാശത്തെ കുറിച്ച് അധികമാർക്കും അറിയാത്ത മൂന്ന് കാര്യങ്ങൾ."
+    = "Three things most people don't know about space." """
+    return f"{topic['about']} അധികമാർക്കും അറിയാത്ത {ML_NUMBERS[n]} കാര്യങ്ങൾ."
+
 FACT_TOPICS = {
+    # "galaxy" alone finds Samsung phones on stock sites, so every space
+    # search says "space"/"night sky" explicitly.
     "space":   {"label": "ബഹിരാകാശം",        # Space
-                "keywords": ["galaxy", "stars night sky", "nebula", "outer space"]},
+                "about": "ബഹിരാകാശത്തെ കുറിച്ച്",   # about space
+                "keywords": ["galaxy space", "milky way night sky", "nebula space",
+                             "stars universe", "outer space"],
+                "nasa": ["galaxy", "hubble galaxy", "milky way", "nebula", "webb galaxy"]},
     "aliens":  {"label": "അന്യഗ്രഹ ജീവൻ",      # Alien life
-                "keywords": ["outer space", "night sky stars", "radio telescope", "galaxy"]},
+                "about": "അന്യഗ്രഹ ജീവനെ കുറിച്ച്",  # about alien life
+                "keywords": ["outer space", "milky way night sky", "radio telescope",
+                             "galaxy space"],
+                "nasa": ["exoplanet", "europa", "galaxy", "hubble"]},
     "animals": {"label": "ജീവലോകം",           # The living world
+                "about": "ജീവികളെ കുറിച്ച്",         # about animals
                 "keywords": ["underwater", "wildlife", "ocean"]},
     "body":    {"label": "മനുഷ്യശരീരം",        # Human body
+                "about": "നമ്മുടെ ശരീരത്തെ കുറിച്ച്",  # about our body
                 "keywords": ["human body", "science laboratory", "microscope"]},
     "earth":   {"label": "നിങ്ങൾക്കറിയാമോ?",   # Did you know?
+                "about": "ഈ ലോകത്തെ കുറിച്ച്",       # about this world
                 "keywords": ["earth from space", "nature landscape", "storm clouds"]},
 }
 
@@ -466,6 +495,50 @@ def get_video_urls(keyword="nature", count=5):
 
 
 # ─────────────────────────────────────────────
+# 5b  NASA Image & Video Library — real galaxy/space footage
+#     (NASA media is generally not copyrighted; no API key needed)
+# ─────────────────────────────────────────────
+NASA_API = "https://images-api.nasa.gov"
+# Skip talking heads, press events and launches — we want space visuals
+NASA_SKIP_WORDS = ("briefing", "conference", "interview", "launch", "rollout", "panel",
+                   "event", "news", "update", "live", "q&a", "podcast", "b-roll of",
+                   "ceremony", "remarks", "hangout", "chat")
+
+
+def get_nasa_video_urls(query, count=3):
+    """Return mp4 URLs of NASA videos matching the query (medium/small renditions)."""
+    urls = []
+    try:
+        r = requests.get(f"{NASA_API}/search",
+                         params={"q": query, "media_type": "video", "page_size": 40},
+                         timeout=15)
+        if r.status_code != 200:
+            print(f"   ⚠️  NASA search '{query}' → HTTP {r.status_code}")
+            return []
+        items = r.json().get("collection", {}).get("items", [])
+        random.shuffle(items)
+        for item in items:
+            meta  = (item.get("data") or [{}])[0]
+            title = meta.get("title", "")
+            if any(w in title.lower() for w in NASA_SKIP_WORDS):
+                continue
+            files = requests.get(item["href"], timeout=15).json()   # list of file URLs
+            mp4s  = [f for f in files if isinstance(f, str) and f.endswith(".mp4")]
+            pick  = (next((f for f in mp4s if "~medium" in f), None)
+                     or next((f for f in mp4s if "~small" in f), None)
+                     or next((f for f in mp4s if "~mobile" in f), None))
+            if not pick:
+                continue
+            urls.append(pick.replace("http://", "https://", 1))
+            print(f"   🔭 NASA clip {len(urls)}: {title[:60]}")
+            if len(urls) >= count:
+                break
+    except Exception as e:
+        print(f"⚠️ NASA error: {e}")
+    return urls
+
+
+# ─────────────────────────────────────────────
 # 6️⃣  Download video
 # ─────────────────────────────────────────────
 def download_video(url):
@@ -473,6 +546,8 @@ def download_video(url):
     resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, stream=True, timeout=30)
     if resp.status_code != 200:
         raise Exception("Failed to download video")
+    if int(resp.headers.get("Content-Length") or 0) > 150 * 1024 * 1024:
+        raise Exception("Video too large (>150 MB) — skipping")
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     for chunk in resp.iter_content(chunk_size=1024 * 1024):
         if chunk:
@@ -511,32 +586,52 @@ def _to_portrait(clip):
 # ─────────────────────────────────────────────
 # 6b️⃣  Build background clip from the author's sport
 # ─────────────────────────────────────────────
-def build_background(keywords, target):
+def build_background(keywords, target, nasa_keywords=()):
+    """
+    keywords      : Pexels searches, tried in order (the whole list is the fallback —
+                    a space Short never falls back to sports footage)
+    nasa_keywords : NASA video library searches, tried first (real galaxy footage)
+    """
     SEG_DUR  = 2.5   # fast cuts hold attention better than long static shots
-    keywords = list(keywords)
+    keywords      = list(dict.fromkeys(keywords))        # de-duplicate, keep order
+    nasa_keywords = list(dict.fromkeys(nasa_keywords))
+
+    nasa_urls = []
+    for kw in nasa_keywords:
+        print(f"   🔭 NASA keyword: '{kw}'")
+        nasa_urls += [u for u in get_nasa_video_urls(kw, count=2) if u not in nasa_urls]
+        if len(nasa_urls) >= 4:
+            break
 
     urls = []
-    for kw in keywords + DEFAULT_SPORT_KEYWORDS:
+    for kw in keywords:
+        if len(nasa_urls) + len(urls) >= 6:
+            break
         print(f"   🎨 Footage keyword: '{kw}'")
         urls += [u for u in get_video_urls(kw, count=4) if u not in urls]
-        if len(urls) >= 6:
-            break
+    random.shuffle(nasa_urls)
     random.shuffle(urls)
+    urls = nasa_urls + urls   # NASA footage first when we have it
+    nasa = set(nasa_urls)
 
     segs, total = [], 0.0
     for url in urls:
         if total >= target:
             break
         try:
-            raw   = VideoFileClip(download_video(url))
-            # Skip the first second — stock clips often open on a static frame
-            start = 1.0 if raw.duration > SEG_DUR + 1.5 else 0.0
+            raw = VideoFileClip(download_video(url))
+            if url in nasa and raw.duration > 20:
+                # NASA videos often open on title cards/logos — cut from the middle
+                start = random.uniform(raw.duration * 0.25, raw.duration * 0.65)
+            else:
+                # Skip the first second — stock clips often open on a static frame
+                start = 1.0 if raw.duration > SEG_DUR + 1.5 else 0.0
             seg   = _to_portrait(raw.subclip(start, min(raw.duration, start + SEG_DUR)))
             segs.append(seg)
             total += seg.duration
             print(f"   ✂️  clip {len(segs)}: {seg.duration:.1f}s  (total {total:.1f}s)")
         except Exception as e:
-            print(f"   ⚠️  Pexels clip failed: {e}")
+            print(f"   ⚠️  Clip failed: {e}")
 
     if not segs:
         raise RuntimeError("No video clips could be loaded.")
@@ -688,22 +783,32 @@ def create_youtube_short(quote, lang="en"):
     cfg        = LANG_CONFIG[lang]
     quote_text = quote["text"]
     if cfg["kind"] == "fact":
+        items    = quote.get("items", [quote])
         topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
         sport    = None
         gender   = random.choice(["male", "female"])
-        keywords = [quote["footage"]] + random.sample(topic["keywords"], len(topic["keywords"]))
+        own      = [f["footage"] for f in items]
+        keywords = own + random.sample(topic["keywords"], len(topic["keywords"]))
+        nasa_kws = own + topic.get("nasa", []) if topic.get("nasa") else []
         overlay  = dict(author=topic["label"], prefix="")
-        hook     = get_hook(None, lang)
+        hook     = fact_list_hook(topic, len(items)) if len(items) > 1 else get_hook(None, lang)
     else:
         # Name as spoken/shown in this language; footage + voice use the English name
         shown_name = quote.get(f"author_{lang}", quote["author"])
         sport, gender = author_profile(quote["author"])
         keywords = random.sample(SPORT_KEYWORDS.get(sport, DEFAULT_SPORT_KEYWORDS),
                                  len(SPORT_KEYWORDS.get(sport, DEFAULT_SPORT_KEYWORDS)))
+        keywords += DEFAULT_SPORT_KEYWORDS
+        nasa_kws = []
         overlay  = dict(author=shown_name)
         hook     = get_hook(shown_name, lang)
-    segments = ([hook] + split_into_segments(quote_text, uppercase=cfg["uppercase"])
-                + [cfg["ending"]])
+    if cfg["kind"] == "fact" and len(items) > 1:
+        body = []
+        for i, f in enumerate(items, 1):
+            body += [f"{ML_NUMBERS[i]}."] + split_into_segments(f["text"], uppercase=False)
+    else:
+        body = split_into_segments(quote_text, uppercase=cfg["uppercase"])
+    segments = [hook] + body + [cfg["ending"]]
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     tts_paths, durations, pause_ms = generate_audio_segments(segments, gender, lang)
@@ -719,7 +824,7 @@ def create_youtube_short(quote, lang="en"):
 
     print(f"⏱  Total duration: {total_dur:.2f}s")
 
-    clip = build_background(keywords, target=total_dur)
+    clip = build_background(keywords, target=total_dur, nasa_keywords=nasa_kws)
     W, H = clip.w, clip.h
 
     slide_clips = build_quote_slides(segments, seg_starts, seg_durs, size=(W, H), lang=lang)
@@ -782,19 +887,28 @@ def build_metadata(quote, sport, lang="en"):
 
 
 def _fact_metadata(fact, cfg):
-    """Fact Shorts: the fact itself is the title (searchable), topic hashtags in the description."""
+    """Fact Shorts: the fact (or "N things about <topic>") as the title, all facts in the description."""
+    items  = fact.get("items", [fact])
     suffix = " #shorts #malayalam #facts"
     budget = 100 - len(suffix)
-    text   = fact["text"].strip()
+    if len(items) > 1:
+        topic = FACT_TOPICS.get(fact.get("topic"), FACT_TOPICS["earth"])
+        text  = f"{topic['about']} അധികമാർക്കും അറിയാത്ത {len(items)} കാര്യങ്ങൾ"
+    else:
+        text  = fact["text"].strip()
     if len(text) > budget:
         text = text[:budget - 1].rsplit(" ", 1)[0].rstrip(",.;:!?") + "…"
     title  = f"{text}{suffix}".replace("<", "").replace(">", "")
     topic_tag = {"space": " #space #galaxy #universe", "aliens": " #aliens #space #universe",
                  "animals": " #animals #nature", "body": " #humanbody",
                  "earth": " #earth #nature"}.get(fact.get("topic"), "")
-    description = f"{fact['text']}\n\n{cfg['hashtags']}{topic_tag}"
-    tags = cfg["tags"] + [fact.get("topic", ""), fact.get("footage", "")]
-    return title, description, [t for t in tags if t]
+    if len(items) > 1:
+        body = "\n\n".join(f"{i}. {f['text']}" for i, f in enumerate(items, 1))
+    else:
+        body = fact["text"]
+    description = f"{body}\n\n{cfg['hashtags']}{topic_tag}"
+    tags = cfg["tags"] + [fact.get("topic", "")] + [f.get("footage", "") for f in items]
+    return title, description, list(dict.fromkeys(t for t in tags if t))
 
 
 # ─────────────────────────────────────────────
@@ -846,7 +960,7 @@ def upload_to_youtube(video_path, quote, sport, lang="en"):
 # ─────────────────────────────────────────────
 # 1️⃣2️⃣  Git commit — MUST be defined BEFORE main()
 # ─────────────────────────────────────────────
-def _git_commit_status(quote_id: int, lang: str = "en") -> bool:
+def _git_commit_status(quote_id, lang: str = "en") -> bool:
     """
     Commit and push the updated quote file back to GitHub.
     Called after mark_posted() so the status change survives the
@@ -878,6 +992,8 @@ def _git_commit_status(quote_id: int, lang: str = "en") -> bool:
         return True
 
     label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact"}.get(lang, lang)
+    if isinstance(quote_id, (list, tuple)):
+        label, quote_id = label + "s", ",".join(str(i) for i in quote_id)
     msg    = f"chore: mark {label} id={quote_id} as posted [skip ci]"
     commit = _run(["git", "commit", "-m", msg])
     if commit.returncode != 0:
@@ -911,6 +1027,9 @@ def main():
 
     lang  = pick_language()
     quote = get_quote(lang)
+    if LANG_CONFIG[lang]["kind"] == "fact":
+        quote["items"] = fact_items(quote, lang)
+        print(f"🧩 Facts in this Short: {[f['id'] for f in quote['items']]}")
     print(f"\n💡 Quote : {quote['text']}")
     print(f"✍️  Author/topic: {quote.get('author') or quote.get('topic')}")
     print(f"🔖 Quote ID: {quote['id']}  ({LANGUAGES[lang]['name']})")
@@ -918,8 +1037,10 @@ def main():
     video_path, sport = create_youtube_short(quote, lang)
     upload_to_youtube(video_path, quote, sport, lang)
 
-    mark_posted(quote["id"], lang)
-    if not _git_commit_status(quote["id"], lang):
+    ids = [q["id"] for q in quote.get("items", [quote])]
+    for qid in ids:
+        mark_posted(qid, lang)
+    if not _git_commit_status(ids if len(ids) > 1 else ids[0], lang):
         # The video is live but the status wasn't saved — fail the job so it's
         # noticed before the next run re-posts the same quote.
         print(f"\n❌ Quote id={quote['id']} was uploaded but its status could not be pushed.")
