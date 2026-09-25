@@ -52,9 +52,9 @@ DEFAULT_QUOTES = [
         "title": "പതിമൂന്നാം നമ്പർ മുറി",
         "voice": "male",
         "footage": "dark hallway|door night|cassette tape",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "YdLcvYq-WqI",
+        "status": "posted",
+        "posted_at": "2026-09-25T13:23:05",
     },
     {
         "id": 3,
