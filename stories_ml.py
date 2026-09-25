@@ -65,9 +65,9 @@ DEFAULT_QUOTES = [
         "title": "പതിമൂന്നാം നമ്പർ മുറി",
         "voice": "male",
         "footage": "cassette tape|old man window|misty mountains",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "raRymQ1TdKI",
+        "status": "posted",
+        "posted_at": "2026-09-25T13:32:42",
     },
     {
         "id": 4,
