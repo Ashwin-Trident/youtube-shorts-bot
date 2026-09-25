@@ -501,10 +501,12 @@ def get_video_urls(keyword="nature", count=5):
         for video in videos:
             files = video.get("video_files", [])
             def hd_score(vf):
-                w, h   = vf.get("width", 0), vf.get("height", 0)
+                # Smallest rendition that is still full HD: Shorts are 1080×1920, and
+                # decoding a dozen 4K clips at once runs the Actions runner out of memory
+                w, h   = vf.get("width", 0) or 0, vf.get("height", 0) or 0
                 is_mp4 = vf.get("file_type") == "video/mp4"
-                is_hd  = h >= 1920 or w >= 1080
-                return (0 if is_mp4 else 1, 0 if is_hd else 1, -(h or 0))
+                is_hd  = min(w, h) >= 1080
+                return (0 if is_mp4 else 1, 0 if is_hd else 1, h if is_hd else -h)
             for vf in sorted(files, key=hd_score):
                 if vf.get("file_type") == "video/mp4":
                     w, h = vf.get("width", 0), vf.get("height", 0)
