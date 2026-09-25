@@ -88,6 +88,9 @@ LANG_CONFIG = {
         "hashtags":      "#shorts #motivation #sportsmotivation #mindset #quotes #dailymotivation",
         "tags":          ["motivation", "shorts", "sports motivation", "quotes",
                           "motivational quotes", "mindset"],
+        "kind":          "quote",
+        "yt_language":   "en",
+        "category":      "17",   # Sports
     },
     "ml": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
@@ -104,7 +107,47 @@ LANG_CONFIG = {
                          "#sportsmotivation #malayalamquotes",
         "tags":          ["malayalam", "malayalam motivation", "malayalam quotes",
                           "motivation malayalam", "shorts", "sports motivation"],
+        "kind":          "quote",
+        "yt_language":   "ml",
+        "category":      "17",   # Sports
     },
+    "ml_facts": {
+        "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
+        # "നിങ്ങൾക്കറിയാമോ?"          = "Did you know?"
+        # "ഇത് അധികമാർക്കും അറിയില്ല." = "Not many people know this."
+        # "ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും." = "This will shock you."
+        "hooks":         ["നിങ്ങൾക്കറിയാമോ?", "ഇത് അധികമാർക്കും അറിയില്ല.",
+                          "ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും."],
+        # "Follow for more facts like this."
+        "ending":        "ഇതുപോലുള്ള കൂടുതൽ അറിവുകൾക്ക് ഫോളോ ചെയ്യൂ.",
+        "caption_font":  MALAYALAM_FONT,
+        "author_font":   MALAYALAM_FONT,
+        "caption_chars": 24,
+        "line_spacing":  1.55,
+        "uppercase":     False,
+        "hashtags":      "#shorts #malayalam #facts #malayalamfacts #didyouknow #science",
+        "tags":          ["malayalam", "malayalam facts", "facts", "did you know",
+                          "interesting facts", "science", "shorts"],
+        "kind":          "fact",
+        "yt_language":   "ml",
+        "category":      "28",   # Science & Technology
+    },
+}
+
+# ─────────────────────────────────────────────
+# Facts: on-screen topic label + fallback footage
+# ─────────────────────────────────────────────
+FACT_TOPICS = {
+    "space":   {"label": "ബഹിരാകാശം",        # Space
+                "keywords": ["galaxy", "stars night sky", "nebula", "outer space"]},
+    "aliens":  {"label": "അന്യഗ്രഹ ജീവൻ",      # Alien life
+                "keywords": ["outer space", "night sky stars", "radio telescope", "galaxy"]},
+    "animals": {"label": "ജീവലോകം",           # The living world
+                "keywords": ["underwater", "wildlife", "ocean"]},
+    "body":    {"label": "മനുഷ്യശരീരം",        # Human body
+                "keywords": ["human body", "science laboratory", "microscope"]},
+    "earth":   {"label": "നിങ്ങൾക്കറിയാമോ?",   # Did you know?
+                "keywords": ["earth from space", "nature landscape", "storm clouds"]},
 }
 
 
@@ -223,7 +266,7 @@ def get_quote(lang):
 # 1b️⃣  Hook line — names the author so viewers know who it's about
 # ─────────────────────────────────────────────
 def get_hook(author, lang="en"):
-    return random.choice(LANG_CONFIG[lang]["hooks"]).format(a=author)
+    return random.choice(LANG_CONFIG[lang]["hooks"]).format(a=author or "")
 
 
 # ─────────────────────────────────────────────
@@ -353,10 +396,10 @@ def build_quote_slides(segments, start_times, durations, size, lang="en"):
 # ─────────────────────────────────────────────
 # 4️⃣  Author name overlay (top of frame, clear of the Shorts UI)
 # ─────────────────────────────────────────────
-def create_author_image(author, size=(1080, 1920), font_path=ITALIC_FONT, uppercase=True):
+def create_author_image(author, size=(1080, 1920), font_path=ITALIC_FONT, uppercase=True, prefix="— "):
     W, H = size
     img  = Image.new("RGBA", size, (0, 0, 0, 0))
-    text = f"— {author.upper() if uppercase else author}"
+    text = f"{prefix}{author.upper() if uppercase else author}"
     font = None
     tw = th = 0
     for fs in range(int(W * 0.056), 26, -2):   # ~60px at 1080 wide
@@ -466,10 +509,9 @@ def _to_portrait(clip):
 # ─────────────────────────────────────────────
 # 6b️⃣  Build background clip from the author's sport
 # ─────────────────────────────────────────────
-def build_background(sport, target):
+def build_background(keywords, target):
     SEG_DUR  = 2.5   # fast cuts hold attention better than long static shots
-    keywords = list(SPORT_KEYWORDS.get(sport, DEFAULT_SPORT_KEYWORDS))
-    random.shuffle(keywords)
+    keywords = list(keywords)
 
     urls = []
     for kw in keywords + DEFAULT_SPORT_KEYWORDS:
@@ -579,7 +621,7 @@ def _synth_coqui(text, path, tts_engine, speaker):
 
 def _pick_voice(gender, lang="en"):
     voice = random.choice(LANG_CONFIG[lang]["voices"][gender])
-    print(f"🎙  Voice: {voice}  ({gender}, matches author)")
+    print(f"🎙  Voice: {voice}  ({gender})")
     return voice
 
 
@@ -643,10 +685,21 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
 def create_youtube_short(quote, lang="en"):
     cfg        = LANG_CONFIG[lang]
     quote_text = quote["text"]
-    # Name as spoken/shown in this language; footage + voice use the English name
-    shown_name = quote.get(f"author_{lang}", quote["author"])
-    sport, gender = author_profile(quote["author"])
-    hook     = get_hook(shown_name, lang)
+    if cfg["kind"] == "fact":
+        topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
+        sport    = None
+        gender   = random.choice(["male", "female"])
+        keywords = [quote["footage"]] + random.sample(topic["keywords"], len(topic["keywords"]))
+        overlay  = dict(author=topic["label"], prefix="")
+        hook     = get_hook(None, lang)
+    else:
+        # Name as spoken/shown in this language; footage + voice use the English name
+        shown_name = quote.get(f"author_{lang}", quote["author"])
+        sport, gender = author_profile(quote["author"])
+        keywords = random.sample(SPORT_KEYWORDS.get(sport, DEFAULT_SPORT_KEYWORDS),
+                                 len(SPORT_KEYWORDS.get(sport, DEFAULT_SPORT_KEYWORDS)))
+        overlay  = dict(author=shown_name)
+        hook     = get_hook(shown_name, lang)
     segments = ([hook] + split_into_segments(quote_text, uppercase=cfg["uppercase"])
                 + [cfg["ending"]])
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
@@ -664,16 +717,16 @@ def create_youtube_short(quote, lang="en"):
 
     print(f"⏱  Total duration: {total_dur:.2f}s")
 
-    clip = build_background(sport, target=total_dur)
+    clip = build_background(keywords, target=total_dur)
     W, H = clip.w, clip.h
 
     slide_clips = build_quote_slides(segments, seg_starts, seg_durs, size=(W, H), lang=lang)
 
-    # Author name stays on screen for the whole quote (after the hook, before the loop line)
+    # Author name (or fact topic) stays on screen for the whole quote/fact
     author_start = seg_starts[1]
     author_clip = (
-        ImageClip(create_author_image(shown_name, (W, H), font_path=cfg["author_font"],
-                                      uppercase=cfg["uppercase"]))
+        ImageClip(create_author_image(size=(W, H), font_path=cfg["author_font"],
+                                      uppercase=cfg["uppercase"], **overlay))
         .set_start(author_start)
         .set_duration(seg_starts[-1] - author_start)
         .crossfadein(0.3)
@@ -700,9 +753,11 @@ def build_metadata(quote, sport, lang="en"):
     """Searchable metadata: the author and quote in the title, full quote in the description."""
     cfg        = LANG_CONFIG[lang]
     quote_text = quote["text"]
+    if cfg["kind"] == "fact":
+        return _fact_metadata(quote, cfg)
     author     = quote["author"]
     shown_name = quote.get(f"author_{lang}")
-    suffix     = f" – {author} #shorts" + (f" #{LANGUAGES[lang]['name'].lower()}" if lang != "en" else "")
+    suffix     = f" – {author} #shorts" + (" #malayalam" if cfg["yt_language"] == "ml" else "")
     budget = 100 - len(suffix) - 2   # YouTube title limit is 100 chars; 2 for the quote marks
     quote  = quote_text.strip()
     if len(quote) > budget:
@@ -722,6 +777,22 @@ def build_metadata(quote, sport, lang="en"):
     if sport:
         tags += [sport, f"{sport} motivation"]
     return title, description, tags
+
+
+def _fact_metadata(fact, cfg):
+    """Fact Shorts: the fact itself is the title (searchable), topic hashtags in the description."""
+    suffix = " #shorts #malayalam #facts"
+    budget = 100 - len(suffix)
+    text   = fact["text"].strip()
+    if len(text) > budget:
+        text = text[:budget - 1].rsplit(" ", 1)[0].rstrip(",.;:!?") + "…"
+    title  = f"{text}{suffix}".replace("<", "").replace(">", "")
+    topic_tag = {"space": " #space #galaxy #universe", "aliens": " #aliens #space #universe",
+                 "animals": " #animals #nature", "body": " #humanbody",
+                 "earth": " #earth #nature"}.get(fact.get("topic"), "")
+    description = f"{fact['text']}\n\n{cfg['hashtags']}{topic_tag}"
+    tags = cfg["tags"] + [fact.get("topic", ""), fact.get("footage", "")]
+    return title, description, [t for t in tags if t]
 
 
 # ─────────────────────────────────────────────
@@ -751,11 +822,11 @@ def upload_to_youtube(video_path, quote, sport, lang="en"):
             "title":       title,
             "description": description,
             "tags":        tags,
-            "categoryId":  "17",   # Sports
+            "categoryId":  LANG_CONFIG[lang]["category"],
             # Tells YouTube which viewers to recommend it to — essential on a
             # channel that mixes English and Malayalam videos
-            "defaultLanguage":      lang,
-            "defaultAudioLanguage": lang,
+            "defaultLanguage":      LANG_CONFIG[lang]["yt_language"],
+            "defaultAudioLanguage": LANG_CONFIG[lang]["yt_language"],
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
     }
@@ -804,8 +875,8 @@ def _git_commit_status(quote_id: int, lang: str = "en") -> bool:
         print(f"ℹ️  {filename} unchanged — nothing to commit.")
         return True
 
-    label  = "" if lang == "en" else f"{LANGUAGES[lang]['name']} "
-    msg    = f"chore: mark {label}quote id={quote_id} as posted [skip ci]"
+    label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact"}.get(lang, lang)
+    msg    = f"chore: mark {label} id={quote_id} as posted [skip ci]"
     commit = _run(["git", "commit", "-m", msg])
     if commit.returncode != 0:
         print(f"⚠️  git commit failed: {commit.stderr.strip()}")
@@ -839,7 +910,7 @@ def main():
     lang  = pick_language()
     quote = get_quote(lang)
     print(f"\n💡 Quote : {quote['text']}")
-    print(f"✍️  Author: {quote['author']}")
+    print(f"✍️  Author/topic: {quote.get('author') or quote.get('topic')}")
     print(f"🔖 Quote ID: {quote['id']}  ({LANGUAGES[lang]['name']})")
 
     video_path, sport = create_youtube_short(quote, lang)

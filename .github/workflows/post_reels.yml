@@ -6,9 +6,9 @@ on:
   workflow_dispatch:         # manual trigger
     inputs:
       language:
-        description: "Language for this run (auto alternates English/Malayalam)"
+        description: "What to post (auto rotates English quotes, Malayalam quotes, Malayalam facts)"
         type: choice
-        options: [auto, en, ml]
+        options: [auto, en, ml, ml_facts]
         default: auto
 
 # Never run two jobs at once — overlapping runs pick the same quote and double-post

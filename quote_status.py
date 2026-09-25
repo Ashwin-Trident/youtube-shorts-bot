@@ -6,16 +6,17 @@ Manages posted/pending status for default quotes.
 Status is stored DIRECTLY in the quote files (the "status" and "posted_at"
 fields on each quote dict) — no separate JSON file needed.
 
-One quote file per language:
-  "en" → quotes.py      (English)
-  "ml" → quotes_ml.py   (Malayalam)
+One file per content stream:
+  "en"       → quotes.py      (English sports quotes)
+  "ml"       → quotes_ml.py   (Malayalam sports quotes)
+  "ml_facts" → facts_ml.py    (Malayalam facts: space, aliens, surprising facts)
 
 How it works:
   - Reads DEFAULT_QUOTES from the language's file at runtime
   - Persists changes by rewriting that file with updated
     status/posted_at values using a safe write-then-replace strategy
 
-Public API   (every function takes lang="en" | "ml", default "en")
+Public API   (every function takes lang="en" | "ml" | "ml_facts", default "en")
 ──────────
   get_next_quote(lang)        → quote dict | raises RuntimeError if all posted
   is_posted(quote_id, lang)   → bool — True if the quote is already posted
@@ -39,14 +40,10 @@ import importlib
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 LANGUAGES = {
-    "en": {"module": "quotes",    "name": "English"},
-    "ml": {"module": "quotes_ml", "name": "Malayalam"},
+    "en":       {"module": "quotes",    "name": "English"},
+    "ml":       {"module": "quotes_ml", "name": "Malayalam"},
+    "ml_facts": {"module": "facts_ml",  "name": "Malayalam facts"},
 }
-
-# Fields written in this order; any extra fields (e.g. "author_ml") go
-# between "author" and "status".
-_HEAD_FIELDS = ("id", "text", "author")
-_TAIL_FIELDS = ("status", "posted_at")
 
 
 def quotes_file(lang: str = "en") -> str:
@@ -81,15 +78,26 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('"""\n')
     lines.append(f'{filename}\n')
     lines.append('─────────────────────────────────────────────────────────────\n')
-    lines.append(f'Central store for all {language} quotes used by the YouTube Shorts bot.\n')
-    lines.append('\n')
-    lines.append('Each entry is a dict with these fields:\n')
-    lines.append('  {\n')
-    lines.append('    "id"        : unique int  (never reuse / reorder),\n')
-    lines.append('    "text"      : the quote string,\n')
-    lines.append('    "author"    : speaker name in English (used for footage, voice and hashtags),\n')
-    if lang != "en":
-        lines.append(f'    "author_{lang}" : speaker name in {language} (spoken + shown on screen),\n')
+    if lang == "ml_facts":
+        lines.append('Central store for all Malayalam facts used by the YouTube Shorts bot.\n')
+        lines.append('\n')
+        lines.append('Each entry is a dict with these fields:\n')
+        lines.append('  {\n')
+        lines.append('    "id"        : unique int  (never reuse / reorder),\n')
+        lines.append('    "text"      : the fact in Malayalam (spoken + shown as captions),\n')
+        lines.append('    "topic"     : "space" | "aliens" | "animals" | "body" | "earth"\n')
+        lines.append('                  (picks the on-screen label and fallback footage),\n')
+        lines.append('    "footage"   : English Pexels search term for this fact\'s background video,\n')
+    else:
+        lines.append(f'Central store for all {language} quotes used by the YouTube Shorts bot.\n')
+        lines.append('\n')
+        lines.append('Each entry is a dict with these fields:\n')
+        lines.append('  {\n')
+        lines.append('    "id"        : unique int  (never reuse / reorder),\n')
+        lines.append('    "text"      : the quote string,\n')
+        lines.append('    "author"    : speaker name in English (used for footage, voice and hashtags),\n')
+        if lang != "en":
+            lines.append(f'    "author_{lang}" : speaker name in {language} (spoken + shown on screen),\n')
     lines.append('    "status"    : "pending" | "posted"   ← updated by quote_status.py after upload\n')
     lines.append('    "posted_at" : ISO-8601 UTC string, or None\n')
     lines.append('  }\n')
@@ -97,21 +105,22 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('quote_status.py reads and writes the "status" / "posted_at" fields\n')
     lines.append('directly in this file so everything stays in one place — no separate JSON needed.\n')
     lines.append('\n')
-    lines.append('To add a new quote: append a new dict with a unique id,\n')
+    noun = "fact" if lang == "ml_facts" else "quote"
+    lines.append(f'To add a new {noun}: append a new dict with a unique id,\n')
     lines.append('status="pending", and posted_at=None.\n')
-    lines.append('Quotes are never re-posted: once every quote is posted the bot stops\n')
-    lines.append('with an error until new quotes are added here.\n')
+    lines.append(f'{noun.capitalize()}s are never re-posted: once every {noun} is posted the bot stops\n')
+    lines.append(f'with an error until new {noun}s are added here.\n')
     lines.append('─────────────────────────────────────────────────────────────\n')
     lines.append('"""\n')
     lines.append('\n')
     lines.append('DEFAULT_QUOTES = [\n')
 
     for q in quotes:
-        extra = [k for k in q if k not in _HEAD_FIELDS + _TAIL_FIELDS]
         lines.append('    {\n')
         lines.append(f'        "id": {q["id"]},\n')
-        for key in ("text", "author", *extra):
-            lines.append(f'        "{key}": {_py_str(q[key])},\n')
+        for key in q:
+            if key not in ("id", "status", "posted_at"):
+                lines.append(f'        "{key}": {_py_str(q[key])},\n')
         lines.append(f'        "status": "{q["status"]}",\n')
         posted_at_val = _py_str(q["posted_at"]) if q["posted_at"] else "None"
         lines.append(f'        "posted_at": {posted_at_val},\n')
@@ -166,7 +175,7 @@ def get_next_quote(lang: str = "en") -> dict:
     """
     for q in _get_quotes(lang):
         if q.get("status", "pending") == "pending":
-            print(f"📌 Next {LANGUAGES[lang]['name']} quote [id={q['id']}]: \"{q['text'][:60]}...\"  — {q['author']}")
+            print(f"📌 Next {LANGUAGES[lang]['name']} entry [id={q['id']}]: \"{q['text'][:60]}...\"  — {_byline(q)}")
             return dict(q)
 
     raise RuntimeError(
@@ -174,6 +183,11 @@ def get_next_quote(lang: str = "en") -> dict:
         f"   Add new quotes to {os.path.basename(quotes_file(lang))} — re-posting old ones\n"
         "   gets the channel flagged as repetitive content."
     )
+
+
+def _byline(q: dict) -> str:
+    """Author for quotes, topic for facts."""
+    return q.get("author") or q.get("topic", "")
 
 
 def pending_count(lang: str = "en") -> int:
@@ -222,14 +236,14 @@ def show_status(lang: str = "en") -> None:
     pending = total - posted
 
     print("\n" + "─" * 78)
-    print(f"  {LANGUAGES[lang]['name'].upper()} QUOTES  │  Total: {total}   ✅ Posted: {posted}   ⏳ Pending: {pending}")
+    print(f"  {LANGUAGES[lang]['name'].upper()}  │  Total: {total}   ✅ Posted: {posted}   ⏳ Pending: {pending}")
     print("─" * 78)
-    print(f"  {'Icon':<4} {'ID':>4}  {'Status':<8}  {'Posted At':<22}  {'Author':<20}  Quote")
+    print(f"  {'Icon':<4} {'ID':>4}  {'Status':<8}  {'Posted At':<22}  {'Author/Topic':<20}  Text")
     print("─" * 78)
     for q in quotes:
         st      = q.get("status", "pending")
         at      = q.get("posted_at") or "—"
         icon    = "✅" if st == "posted" else "⏳"
         excerpt = q["text"][:40] + ("…" if len(q["text"]) > 40 else "")
-        print(f"  {icon}   [{q['id']:>3}]  {st:<8}  {at:<22}  {q['author']:<20}  \"{excerpt}\"")
+        print(f"  {icon}   [{q['id']:>3}]  {st:<8}  {at:<22}  {_byline(q):<20}  \"{excerpt}\"")
     print("─" * 78 + "\n")
