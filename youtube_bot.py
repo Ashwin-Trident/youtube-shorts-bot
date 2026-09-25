@@ -21,7 +21,7 @@ from TTS.api import TTS
 from pydub import AudioSegment
 
 from quote_status import (
-    LANGUAGES, get_next_quote, mark_posted, reset_all, show_status,
+    LANGUAGES, get_next_quote, get_quote_by_id, mark_posted, reset_all, show_status,
     last_posted_at, pending_count, quotes_file,
 )
 
@@ -251,8 +251,10 @@ def pick_language():
 
 
 def get_quote(lang):
+    # BOT_QUOTE_ID (workflow "quote_id" input) posts one specific entry instead of the next one
+    chosen = os.environ.get("BOT_QUOTE_ID", "").strip()
     try:
-        quote = get_next_quote(lang)
+        quote = get_quote_by_id(int(chosen), lang) if chosen else get_next_quote(lang)
     except RuntimeError as e:
         # Never recycle old quotes — repeated uploads get the channel
         # flagged as repetitive content. Fail loudly so new quotes get added.

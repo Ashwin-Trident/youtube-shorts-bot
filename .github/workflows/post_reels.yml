@@ -10,6 +10,10 @@ on:
         type: choice
         options: [auto, en, ml, ml_facts]
         default: auto
+      quote_id:
+        description: "Optional: post this specific quote/fact id (needs a language, not auto)"
+        required: false
+        default: ""
 
 # Never run two jobs at once — overlapping runs pick the same quote and double-post
 concurrency:
@@ -86,6 +90,7 @@ jobs:
           REFRESH_TOKEN:  ${{ secrets.REFRESH_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           BOT_LANGUAGE:   ${{ inputs.language || 'auto' }}
+          BOT_QUOTE_ID:   ${{ inputs.quote_id || '' }}
         # youtube_bot.py commits + pushes the updated quote file itself, and
         # fails the job if that push doesn't succeed.
         run: python -u youtube_bot.py

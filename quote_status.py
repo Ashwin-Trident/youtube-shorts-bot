@@ -19,6 +19,7 @@ How it works:
 Public API   (every function takes lang="en" | "ml" | "ml_facts", default "en")
 ──────────
   get_next_quote(lang)        → quote dict | raises RuntimeError if all posted
+  get_quote_by_id(id, lang)   → that quote dict | raises RuntimeError if missing/posted
   is_posted(quote_id, lang)   → bool — True if the quote is already posted
   mark_posted(quote_id, lang) → updates status="posted" + posted_at
   reset_all(lang)             → resets every quote back to pending
@@ -188,6 +189,17 @@ def get_next_quote(lang: str = "en") -> dict:
 def _byline(q: dict) -> str:
     """Author for quotes, topic for facts."""
     return q.get("author") or q.get("topic", "")
+
+
+def get_quote_by_id(quote_id: int, lang: str = "en") -> dict:
+    """Return a copy of one specific pending entry (for posting a chosen quote/fact)."""
+    for q in _get_quotes(lang):
+        if q["id"] == quote_id:
+            if q.get("status") == "posted":
+                raise RuntimeError(f"🚫 {LANGUAGES[lang]['name']} id={quote_id} is already posted.")
+            print(f"📌 Chosen {LANGUAGES[lang]['name']} entry [id={q['id']}]: \"{q['text'][:60]}...\"  — {_byline(q)}")
+            return dict(q)
+    raise RuntimeError(f"🚫 {LANGUAGES[lang]['name']} id={quote_id} not found.")
 
 
 def pending_count(lang: str = "en") -> int:
