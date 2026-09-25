@@ -154,7 +154,7 @@ DEFAULT_QUOTES = [
         "text": "I know what I can do, so I never doubt myself.",
         "author": "Usain Bolt",
         "status": "posted",
-        "posted_at": "2026-09-20T17:51:19",
+        "posted_at": "2026-09-25T19:05:53",
     },
     {
         "id": 20,
