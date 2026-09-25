@@ -39,9 +39,9 @@ DEFAULT_QUOTES = [
         "title": "പതിമൂന്നാം നമ്പർ മുറി",
         "voice": "male",
         "footage": "old hotel corridor night|misty mountains|dark hallway",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "YRuGf2UdIPg",
+        "status": "posted",
+        "posted_at": "2026-09-25T13:09:08",
     },
     {
         "id": 2,
