@@ -6,9 +6,9 @@ on:
   workflow_dispatch:         # manual trigger
     inputs:
       language:
-        description: "What to post (auto rotates English quotes, Malayalam quotes, Malayalam facts)"
+        description: "What to post (auto rotates English quotes, Malayalam quotes, facts, stories)"
         type: choice
-        options: [auto, en, ml, ml_facts]
+        options: [auto, en, ml, ml_facts, ml_story]
         default: auto
       quote_id:
         description: "Optional: post this specific quote/fact id (needs a language, not auto)"

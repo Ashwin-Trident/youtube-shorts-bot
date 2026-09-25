@@ -10,6 +10,7 @@ One file per content stream:
   "en"       → quotes.py      (English sports quotes)
   "ml"       → quotes_ml.py   (Malayalam sports quotes)
   "ml_facts" → facts_ml.py    (Malayalam facts: space, aliens, surprising facts)
+  "ml_story" → stories_ml.py  (Malayalam mystery stories, posted part by part)
 
 How it works:
   - Reads DEFAULT_QUOTES from the language's file at runtime
@@ -21,7 +22,7 @@ Public API   (every function takes lang="en" | "ml" | "ml_facts", default "en")
   get_next_quote(lang)        → quote dict | raises RuntimeError if all posted
   get_quote_by_id(id, lang)   → that quote dict | raises RuntimeError if missing/posted
   is_posted(quote_id, lang)   → bool — True if the quote is already posted
-  mark_posted(quote_id, lang) → updates status="posted" + posted_at
+  mark_posted(quote_id, lang, **fields) → status="posted" + posted_at (+ e.g. video_id)
   reset_all(lang)             → resets every quote back to pending
   last_posted_at(lang)        → most recent posted_at string, or "" if none
   pending_count(lang)         → number of quotes still pending
@@ -45,6 +46,7 @@ LANGUAGES = {
     "en":       {"module": "quotes",    "name": "English"},
     "ml":       {"module": "quotes_ml", "name": "Malayalam"},
     "ml_facts": {"module": "facts_ml",  "name": "Malayalam facts"},
+    "ml_story": {"module": "stories_ml", "name": "Malayalam stories"},
 }
 
 
@@ -80,7 +82,22 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('"""\n')
     lines.append(f'{filename}\n')
     lines.append('─────────────────────────────────────────────────────────────\n')
-    if lang == "ml_facts":
+    if lang == "ml_story":
+        lines.append('Central store for the Malayalam story series used by the YouTube Shorts bot.\n')
+        lines.append('Each story is told in parts; every part is its own Short, posted in file order.\n')
+        lines.append('\n')
+        lines.append('Each entry is a dict with these fields:\n')
+        lines.append('  {\n')
+        lines.append('    "id"        : unique int  (never reuse / reorder),\n')
+        lines.append('    "text"      : this part of the story in Malayalam,\n')
+        lines.append('    "story"     : story number (parts of one story share it),\n')
+        lines.append('    "part"      : part number within the story (1, 2, 3...),\n')
+        lines.append('    "parts"     : total parts in this story,\n')
+        lines.append('    "title"     : story title in Malayalam,\n')
+        lines.append('    "voice"     : "male" | "female"  (same narrator for every part),\n')
+        lines.append('    "footage"   : English Pexels searches for this part, separated by "|",\n')
+        lines.append('    "video_id"  : YouTube id once posted (later parts link back to it),\n')
+    elif lang == "ml_facts":
         lines.append('Central store for all Malayalam facts used by the YouTube Shorts bot.\n')
         lines.append('\n')
         lines.append('Each entry is a dict with these fields:\n')
@@ -107,7 +124,7 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('quote_status.py reads and writes the "status" / "posted_at" fields\n')
     lines.append('directly in this file so everything stays in one place — no separate JSON needed.\n')
     lines.append('\n')
-    noun = "fact" if lang == "ml_facts" else "quote"
+    noun = {"ml_facts": "fact", "ml_story": "story part"}.get(lang, "quote")
     lines.append(f'To add a new {noun}: append a new dict with a unique id,\n')
     lines.append('status="pending", and posted_at=None.\n')
     lines.append(f'{noun.capitalize()}s are never re-posted: once every {noun} is posted the bot stops\n')
@@ -137,9 +154,11 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     os.replace(tmp_path, path)
 
 
-def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at, lang: str = "en") -> None:
+def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at, lang: str = "en",
+                         **fields) -> None:
     """
-    Update status and posted_at for a single quote by rewriting its file.
+    Update status and posted_at (plus any extra fields the entry already has,
+    e.g. video_id) for a single quote by rewriting its file.
     """
     quotes = [dict(q) for q in _get_quotes(lang)]   # fresh copy
 
@@ -147,6 +166,7 @@ def _patch_quote_in_file(quote_id: int, new_status: str, new_posted_at, lang: st
         if q["id"] == quote_id:
             q["status"]    = new_status
             q["posted_at"] = new_posted_at
+            q.update({k: v for k, v in fields.items() if k in q})
             break
     else:
         raise ValueError(f"Quote id={quote_id} not found in {quotes_file(lang)}")
@@ -203,6 +223,10 @@ def get_quote_by_id(quote_id: int, lang: str = "en") -> dict:
     raise RuntimeError(f"🚫 {LANGUAGES[lang]['name']} id={quote_id} not found.")
 
 
+def get_all(lang: str = "en") -> list:
+    return [dict(q) for q in _get_quotes(lang)]
+
+
 def get_pending(lang: str = "en") -> list:
     return [dict(q) for q in _get_quotes(lang) if q.get("status", "pending") == "pending"]
 
@@ -216,7 +240,7 @@ def last_posted_at(lang: str = "en") -> str:
     return max((q.get("posted_at") or "" for q in _get_quotes(lang)), default="")
 
 
-def mark_posted(quote_id: int, lang: str = "en") -> None:
+def mark_posted(quote_id: int, lang: str = "en", **fields) -> None:
     """
     Set status="posted" and record the UTC timestamp for the given quote.
     Writes the change directly into the language's quote file.
@@ -227,7 +251,7 @@ def mark_posted(quote_id: int, lang: str = "en") -> None:
         return
 
     timestamp = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
-    _patch_quote_in_file(quote_id, new_status="posted", new_posted_at=timestamp, lang=lang)
+    _patch_quote_in_file(quote_id, new_status="posted", new_posted_at=timestamp, lang=lang, **fields)
     print(f"✅ Quote id={quote_id} marked as POSTED at {timestamp} UTC  ({os.path.basename(quotes_file(lang))} updated)")
 
 

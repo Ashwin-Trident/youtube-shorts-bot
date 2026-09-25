@@ -21,7 +21,8 @@ from TTS.api import TTS
 from pydub import AudioSegment
 
 from quote_status import (
-    LANGUAGES, get_next_quote, get_quote_by_id, get_pending, mark_posted, reset_all, show_status,
+    LANGUAGES, get_next_quote, get_quote_by_id, get_pending, get_all, mark_posted, reset_all,
+    show_status,
     last_posted_at, pending_count, quotes_file,
 )
 
@@ -132,7 +133,30 @@ LANG_CONFIG = {
         "yt_language":   "ml",
         "category":      "28",   # Science & Technology
     },
+    "ml_story": {
+        "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
+        "hooks":         [],     # built from the story title + part number
+        # "The rest in the next part. Follow so you don't miss it."
+        "ending":        "ബാക്കി അടുത്ത ഭാഗത്തിൽ. കാണാതെ പോകാതിരിക്കാൻ ഫോളോ ചെയ്യൂ.",
+        # Final part: "If you liked the story, like it. Follow for new stories."
+        "final_ending":  "കഥ ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്യൂ. പുതിയ കഥകൾക്കായി ഫോളോ ചെയ്യൂ.",
+        "caption_font":  MALAYALAM_FONT,
+        "author_font":   MALAYALAM_FONT,
+        "caption_chars": 24,
+        "line_spacing":  1.55,
+        "uppercase":     False,
+        "hashtags":      "#shorts #malayalam #malayalamstory #story #mystery #kathakal",
+        "tags":          ["malayalam story", "malayalam", "story", "mystery story",
+                          "malayalam kathakal", "horror story malayalam", "shorts"],
+        "kind":          "story",
+        "yt_language":   "ml",
+        "category":      "24",   # Entertainment
+    },
 }
+
+# Story Shorts: moody fallback footage if a part's own searches find little
+STORY_FALLBACK_KEYWORDS = ["night rain window", "misty forest", "dark clouds",
+                           "candle dark", "kerala village"]
 
 # ─────────────────────────────────────────────
 # Facts: on-screen topic label + fallback footage
@@ -792,7 +816,18 @@ def assemble_audio(tts_paths, durations, pause_ms, music_file):
 def create_youtube_short(quote, lang="en"):
     cfg        = LANG_CONFIG[lang]
     quote_text = quote["text"]
-    if cfg["kind"] == "fact":
+    if cfg["kind"] == "story":
+        part, parts = int(quote["part"]), int(quote["parts"])
+        sport    = None
+        gender   = quote.get("voice", "male")
+        keywords = quote["footage"].split("|") + STORY_FALLBACK_KEYWORDS
+        nasa_kws = []
+        # Top label: "<title> | ഭാഗം N" (part N)
+        overlay  = dict(author=f"{quote['title']} | ഭാഗം {part}", prefix="")
+        # Spoken opening: "<title>. Part <N>."
+        hook     = f"{quote['title']}. ഭാഗം {ML_NUMBERS.get(part, part)}."
+        items    = [quote]
+    elif cfg["kind"] == "fact":
         items    = quote.get("items", [quote])
         topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
         sport    = None
@@ -818,7 +853,10 @@ def create_youtube_short(quote, lang="en"):
             body += [f"{ML_NUMBERS[i]}."] + split_into_segments(f["text"], uppercase=False)
     else:
         body = split_into_segments(quote_text, uppercase=cfg["uppercase"])
-    segments = [hook] + body + [cfg["ending"]]
+    ending = cfg["ending"]
+    if cfg["kind"] == "story" and int(quote["part"]) >= int(quote["parts"]):
+        ending = cfg["final_ending"]
+    segments = [hook] + body + [ending]
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     tts_paths, durations, pause_ms = generate_audio_segments(segments, gender, lang)
@@ -872,6 +910,8 @@ def build_metadata(quote, sport, lang="en"):
     quote_text = quote["text"]
     if cfg["kind"] == "fact":
         return _fact_metadata(quote, cfg)
+    if cfg["kind"] == "story":
+        return _story_metadata(quote, cfg, lang)
     author     = quote["author"]
     shown_name = quote.get(f"author_{lang}")
     suffix     = f" – {author} #shorts" + (" #malayalam" if cfg["yt_language"] == "ml" else "")
@@ -894,6 +934,26 @@ def build_metadata(quote, sport, lang="en"):
     if sport:
         tags += [sport, f"{sport} motivation"]
     return title, description, tags
+
+
+def _story_metadata(part_entry, cfg, lang):
+    """Story Shorts: "<title> | ഭാഗം N/M" title; description links the earlier parts."""
+    part, parts = int(part_entry["part"]), int(part_entry["parts"])
+    title = f"{part_entry['title']} | ഭാഗം {part}/{parts} | Malayalam Story #shorts"
+    earlier = [e for e in get_all(lang)
+               if e["story"] == part_entry["story"] and int(e["part"]) < part and e.get("video_id")]
+    lines = [f"{part_entry['title']} — ഭാഗം {part}/{parts}", ""]
+    if earlier:
+        lines.append("മുമ്പത്തെ ഭാഗങ്ങൾ:")          # "Previous parts:"
+        lines += [f"ഭാഗം {e['part']}: https://youtube.com/shorts/{e['video_id']}"
+                  for e in sorted(earlier, key=lambda e: int(e["part"]))]
+        lines.append("")
+    if part < parts:
+        lines.append(f"ഭാഗം {part + 1} ഉടൻ വരുന്നു. ഫോളോ ചെയ്യൂ!")   # "Part N+1 coming soon. Follow!"
+        lines.append("")
+    lines.append(cfg["hashtags"])
+    tags = cfg["tags"] + [part_entry["title"], f"part {part}"]
+    return title.replace("<", "").replace(">", ""), "\n".join(lines), tags
 
 
 def _fact_metadata(fact, cfg):
@@ -1001,7 +1061,8 @@ def _git_commit_status(quote_id, lang: str = "en") -> bool:
         print(f"ℹ️  {filename} unchanged — nothing to commit.")
         return True
 
-    label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact"}.get(lang, lang)
+    label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact",
+              "ml_story": "Malayalam story part"}.get(lang, lang)
     if isinstance(quote_id, (list, tuple)):
         label, quote_id = label + "s", ",".join(str(i) for i in quote_id)
     msg    = f"chore: mark {label} id={quote_id} as posted [skip ci]"
@@ -1045,11 +1106,11 @@ def main():
     print(f"🔖 Quote ID: {quote['id']}  ({LANGUAGES[lang]['name']})")
 
     video_path, sport = create_youtube_short(quote, lang)
-    upload_to_youtube(video_path, quote, sport, lang)
+    video_id = upload_to_youtube(video_path, quote, sport, lang)
 
     ids = [q["id"] for q in quote.get("items", [quote])]
     for qid in ids:
-        mark_posted(qid, lang)
+        mark_posted(qid, lang, video_id=video_id)   # stored only where the entry has video_id
     if not _git_commit_status(ids if len(ids) > 1 else ids[0], lang):
         # The video is live but the status wasn't saved — fail the job so it's
         # noticed before the next run re-posts the same quote.
