@@ -502,7 +502,13 @@ NASA_API = "https://images-api.nasa.gov"
 # Skip talking heads, press events and launches — we want space visuals
 NASA_SKIP_WORDS = ("briefing", "conference", "interview", "launch", "rollout", "panel",
                    "event", "news", "update", "live", "q&a", "podcast", "b-roll of",
-                   "ceremony", "remarks", "hangout", "chat")
+                   "ceremony", "remarks", "hangout", "chat", "mission overview",
+                   "luck", "science live", "explainer", "animation vs", "tutorial")
+# ...and only keep videos whose title is clearly about space visuals
+NASA_SPACE_WORDS = ("galaxy", "galaxies", "nebula", "hubble", "webb", "milky way", "star",
+                    "black hole", "universe", "cosmic", "supernova", "planet", "moon",
+                    "mars", "jupiter", "saturn", "sun", "solar", "comet", "asteroid",
+                    "earth from", "aurora", "exoplanet", "europa", "enceladus")
 
 
 def get_nasa_video_urls(query, count=3):
@@ -520,7 +526,10 @@ def get_nasa_video_urls(query, count=3):
         for item in items:
             meta  = (item.get("data") or [{}])[0]
             title = meta.get("title", "")
-            if any(w in title.lower() for w in NASA_SKIP_WORDS):
+            low   = title.lower()
+            # Skip talk/press videos, and archive codes like "KSC-04-S-00307"
+            if (any(w in low for w in NASA_SKIP_WORDS)
+                    or not any(w in low for w in NASA_SPACE_WORDS)):
                 continue
             files = requests.get(item["href"], timeout=15).json()   # list of file URLs
             mp4s  = [f for f in files if isinstance(f, str) and f.endswith(".mp4")]
@@ -593,6 +602,7 @@ def build_background(keywords, target, nasa_keywords=()):
     nasa_keywords : NASA video library searches, tried first (real galaxy footage)
     """
     SEG_DUR  = 2.5   # fast cuts hold attention better than long static shots
+    needed   = int(target / SEG_DUR) + 2                 # distinct clips to avoid looping
     keywords      = list(dict.fromkeys(keywords))        # de-duplicate, keep order
     nasa_keywords = list(dict.fromkeys(nasa_keywords))
 
@@ -600,12 +610,12 @@ def build_background(keywords, target, nasa_keywords=()):
     for kw in nasa_keywords:
         print(f"   🔭 NASA keyword: '{kw}'")
         nasa_urls += [u for u in get_nasa_video_urls(kw, count=2) if u not in nasa_urls]
-        if len(nasa_urls) >= 4:
+        if len(nasa_urls) >= max(4, needed // 2):
             break
 
     urls = []
     for kw in keywords:
-        if len(nasa_urls) + len(urls) >= 6:
+        if len(nasa_urls) + len(urls) >= needed:
             break
         print(f"   🎨 Footage keyword: '{kw}'")
         urls += [u for u in get_video_urls(kw, count=4) if u not in urls]
