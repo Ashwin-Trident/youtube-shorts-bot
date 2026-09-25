@@ -147,7 +147,7 @@ DEFAULT_QUOTES = [
         "text": "You always want to win. That is why you play tennis, because you love the sport and you try to be the best you can at it.",
         "author": "Roger Federer",
         "status": "posted",
-        "posted_at": "2026-09-20T13:22:24",
+        "posted_at": "2026-09-25T14:24:05",
     },
     {
         "id": 19,
