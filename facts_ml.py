@@ -70,8 +70,8 @@ DEFAULT_QUOTES = [
         "text": "ഭൂമിയുടെ ഭ്രമണവേഗം പതിയെ കുറയുന്നു. അതുകൊണ്ട് ദിവസങ്ങളുടെ നീളം വളരെ ചെറിയ അളവിൽ കൂടിക്കൊണ്ടിരിക്കുന്നു.",
         "topic": "earth",
         "footage": "earth from space",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-26T12:47:06",
     },
     {
         "id": 7,
@@ -174,8 +174,8 @@ DEFAULT_QUOTES = [
         "text": "ഒരു മിന്നലിന്റെ ചൂട് സൂര്യന്റെ ഉപരിതലത്തേക്കാൾ ഏകദേശം അഞ്ച് മടങ്ങ് കൂടുതലാണ്.",
         "topic": "earth",
         "footage": "lightning",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-26T12:47:06",
     },
     {
         "id": 20,
@@ -206,8 +206,8 @@ DEFAULT_QUOTES = [
         "text": "തേൻ ഒരിക്കലും കേടാകില്ല. ആയിരക്കണക്കിന് വർഷം പഴക്കമുള്ള ഈജിപ്ഷ്യൻ കല്ലറകളിൽ നിന്ന് കഴിക്കാവുന്ന തേൻ കണ്ടെത്തിയിട്ടുണ്ട്.",
         "topic": "earth",
         "footage": "honey",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-26T12:47:06",
     },
     {
         "id": 24,
