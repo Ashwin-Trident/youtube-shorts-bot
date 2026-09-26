@@ -167,6 +167,19 @@ FACTS_PER_VIDEO = 3
 ML_NUMBERS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്"}
 
 
+def next_fact(lang):
+    """First pending fact of the topic that was posted least recently —
+    rotates space / aliens / animals / body / earth instead of file order."""
+    pending = get_pending(lang)
+    last = {}
+    for f in get_all(lang):
+        if f.get("status") == "posted":
+            last[f["topic"]] = max(last.get(f["topic"], ""), f.get("posted_at") or "")
+    topics = list(dict.fromkeys(f["topic"] for f in pending))
+    topic  = min(topics, key=lambda t: last.get(t, ""))
+    return next(f for f in pending if f["topic"] == topic)
+
+
 def fact_items(fact, lang):
     """The chosen fact plus the next pending facts on the same topic."""
     others = [f for f in get_pending(lang)
@@ -282,7 +295,8 @@ def author_profile(author):
 # ─────────────────────────────────────────────
 # Streams left out of the automatic rotation until this UTC date (YYYY-MM-DD).
 # A manual run with an explicit language still posts them.
-PAUSED_UNTIL = {"en": "2026-10-06"}   # English quotes paused for 10 days — Malayalam only
+# 26 Sep – 6 Oct 2026: only "things people don't know" (Malayalam facts) Shorts
+PAUSED_UNTIL = {"en": "2026-10-06", "ml": "2026-10-06", "ml_story": "2026-10-06"}
 
 
 def is_paused(lang):
@@ -1113,6 +1127,9 @@ def main():
 
     lang  = pick_language()
     quote = get_quote(lang)
+    if LANG_CONFIG[lang]["kind"] == "fact" and not os.environ.get("BOT_QUOTE_ID", "").strip():
+        quote = next_fact(lang)
+        print(f"🔄 Fact topic this time: {quote['topic']} (posted least recently)")
     if LANG_CONFIG[lang]["kind"] == "fact":
         quote["items"] = fact_items(quote, lang)
         print(f"🧩 Facts in this Short: {[f['id'] for f in quote['items']]}")
