@@ -209,8 +209,8 @@ DEFAULT_QUOTES = [
         "id": 27,
         "text": "Failure is a part of success.",
         "author": "Hank Aaron",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-26T08:15:06",
     },
     {
         "id": 28,
