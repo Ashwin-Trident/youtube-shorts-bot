@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+client_secret*.json
+quotes.py.tmp
