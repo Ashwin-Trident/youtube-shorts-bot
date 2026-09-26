@@ -119,8 +119,9 @@ LANG_CONFIG = {
         # "ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും." = "This will shock you."
         "hooks":         ["നിങ്ങൾക്കറിയാമോ?", "ഇത് അധികമാർക്കും അറിയില്ല.",
                           "ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും."],
-        # "Follow for more facts like this."
-        "ending":        "ഇതുപോലുള്ള കൂടുതൽ അറിവുകൾക്ക് ഫോളോ ചെയ്യൂ.",
+        # "How many of these did you know? Comment. Follow for more facts."
+        # (a question gets comments — comments push a Short to more viewers)
+        "ending":        "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റ് ചെയ്യൂ. കൂടുതൽ അറിവുകൾക്ക് ഫോളോ ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -190,7 +191,9 @@ def fact_items(fact, lang):
 def fact_list_hook(topic, n):
     """e.g. "ബഹിരാകാശത്തെ കുറിച്ച് അധികമാർക്കും അറിയാത്ത മൂന്ന് കാര്യങ്ങൾ."
     = "Three things most people don't know about space." """
-    return f"{topic['about']} അധികമാർക്കും അറിയാത്ത {ML_NUMBERS[n]} കാര്യങ്ങൾ."
+    # + "The last one will surprise you." — keeps people watching to the end
+    return (f"{topic['about']} അധികമാർക്കും അറിയാത്ത {ML_NUMBERS[n]} കാര്യങ്ങൾ. "
+            "അവസാനത്തേത് നിങ്ങളെ അത്ഭുതപ്പെടുത്തും.")
 
 FACT_TOPICS = {
     # "galaxy" alone finds Samsung phones on stock sites, so every space
@@ -214,6 +217,17 @@ FACT_TOPICS = {
     "earth":   {"label": "നിങ്ങൾക്കറിയാമോ?",   # Did you know?
                 "about": "ഈ ലോകത്തെ കുറിച്ച്",       # about this world
                 "keywords": ["earth from space", "nature landscape", "storm clouds"]},
+    "kerala":  {"label": "കേരളം",               # Kerala
+                "about": "നമ്മുടെ കേരളത്തെ കുറിച്ച്",  # about our Kerala
+                "keywords": ["kerala backwaters", "kerala village", "coconut trees",
+                             "kerala landscape"]},
+    "mind":    {"label": "മനസ്സിന്റെ രഹസ്യങ്ങൾ",  # Secrets of the mind
+                "about": "നമ്മുടെ മനസ്സിനെ കുറിച്ച്",  # about our mind
+                "keywords": ["brain", "thinking person", "city people walking",
+                             "dreamy light"]},
+    "food":    {"label": "ഭക്ഷണം",             # Food
+                "about": "നമ്മൾ കഴിക്കുന്ന ഭക്ഷണത്തെ കുറിച്ച്",  # about the food we eat
+                "keywords": ["indian food", "spices", "fresh fruits", "cooking kitchen"]},
 }
 
 
@@ -1000,12 +1014,15 @@ def _fact_metadata(fact, cfg):
     title  = f"{text}{suffix}".replace("<", "").replace(">", "")
     topic_tag = {"space": " #space #galaxy #universe", "aliens": " #aliens #space #universe",
                  "animals": " #animals #nature", "body": " #humanbody",
-                 "earth": " #earth #nature"}.get(fact.get("topic"), "")
+                 "earth": " #earth #nature", "kerala": " #kerala #keralafacts",
+                 "mind": " #psychology #mind", "food": " #food #foodfacts"}.get(fact.get("topic"), "")
     if len(items) > 1:
         body = "\n\n".join(f"{i}. {f['text']}" for i, f in enumerate(items, 1))
     else:
         body = fact["text"]
-    description = f"{body}\n\n{cfg['hashtags']}{topic_tag}"
+    # Question for the comments ("How many of these did you know? Tell us 👇")
+    ask = "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റിൽ പറയൂ 👇"
+    description = f"{body}\n\n{ask}\n\n{cfg['hashtags']}{topic_tag}"
     tags = cfg["tags"] + [fact.get("topic", "")] + [f.get("footage", "") for f in items]
     return title, description, list(dict.fromkeys(t for t in tags if t))
 
