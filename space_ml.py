@@ -33,8 +33,8 @@ DEFAULT_QUOTES = [
         "nasa": "big bang|universe|galaxy",
         "footage": "galaxy space|nebula space|stars universe",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-26T13:00:17",
     },
     {
         "id": 2,
