@@ -280,6 +280,16 @@ def author_profile(author):
 # ─────────────────────────────────────────────
 # 1️⃣  Get a quote
 # ─────────────────────────────────────────────
+# Streams left out of the automatic rotation until this UTC date (YYYY-MM-DD).
+# A manual run with an explicit language still posts them.
+PAUSED_UNTIL = {"en": "2026-10-06"}   # English quotes paused for 10 days — Malayalam only
+
+
+def is_paused(lang):
+    until = PAUSED_UNTIL.get(lang)
+    return bool(until) and datetime.datetime.utcnow().date().isoformat() < until
+
+
 def pick_language():
     """
     Language for this run: --lang / BOT_LANGUAGE override, otherwise alternate —
@@ -295,9 +305,12 @@ def pick_language():
             sys.exit(f"❌ Unknown language '{forced}' — use one of {', '.join(LANGUAGES)}")
         return forced
 
-    available = [l for l in LANGUAGES if pending_count(l) > 0]
+    available = [l for l in LANGUAGES if pending_count(l) > 0 and not is_paused(l)]
     if not available:
         return "en"   # get_quote() reports that every list is used up
+    for l in LANGUAGES:
+        if is_paused(l):
+            print(f"⏸  {LANGUAGES[l]['name']} paused until {PAUSED_UNTIL[l]}")
     lang = min(available, key=last_posted_at)
     print(f"🌐 Language: {LANGUAGES[lang]['name']}  (posted least recently)")
     return lang
