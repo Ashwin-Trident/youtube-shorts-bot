@@ -161,7 +161,7 @@ DEFAULT_QUOTES = [
         "text": "Worrying gets you nowhere. If you turn up worrying about how you're going to perform, you've already lost. Train hard, turn up, run your best, and the rest will take care of itself.",
         "author": "Usain Bolt",
         "status": "posted",
-        "posted_at": "2026-09-20T20:03:41",
+        "posted_at": "2026-09-25T23:47:36",
     },
     {
         "id": 21,
