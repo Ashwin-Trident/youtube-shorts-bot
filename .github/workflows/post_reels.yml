@@ -8,7 +8,7 @@ on:
       language:
         description: "What to post (auto rotates English quotes, Malayalam quotes, facts, stories)"
         type: choice
-        options: [auto, en, en_facts, ml, ml_facts, ml_story]
+        options: [auto, en, en_facts, ml, ml_facts, ml_space, ml_story]
         default: auto
       quote_id:
         description: "Optional: post this specific quote/fact id (needs a language, not auto)"

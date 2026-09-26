@@ -162,6 +162,26 @@ LANG_CONFIG = {
         "title_suffix":  " #shorts #facts",
         "comment_ask":   "Which fact surprised you the most? Tell us in the comments 👇",
     },
+    "ml_space": {
+        "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
+        "hooks":         [],     # the question itself is the hook
+        # "What do you think? Comment. Follow for more secrets of the universe."
+        "ending":        "നിങ്ങളുടെ അഭിപ്രായം എന്താണ്? കമന്റ് ചെയ്യൂ. പ്രപഞ്ചത്തിന്റെ കൂടുതൽ രഹസ്യങ്ങൾക്കായി ഫോളോ ചെയ്യൂ.",
+        "caption_font":  MALAYALAM_FONT,
+        "author_font":   MALAYALAM_FONT,
+        "caption_chars": 24,
+        "line_spacing":  1.55,
+        "uppercase":     False,
+        "hashtags":      "#shorts #malayalam #space #universe #astronomy #science #spacefacts",
+        "tags":          ["malayalam", "space malayalam", "universe", "astronomy", "space",
+                          "science malayalam", "shorts"],
+        "title_tags":    "#universe #space #astronomy #malayalam #shorts",
+        # "What do you think? Tell us in the comments 👇"
+        "comment_ask":   "നിങ്ങളുടെ അഭിപ്രായം എന്താണ്? കമന്റിൽ പറയൂ 👇",
+        "kind":          "explainer",
+        "yt_language":   "ml",
+        "category":      "28",   # Science & Technology
+    },
     "ml_story": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # built from the story title + part number
@@ -570,6 +590,40 @@ def create_author_image(author, size=(1080, 1920), font_path=ITALIC_FONT, upperc
     return path
 
 
+def create_question_image(question, size=(1080, 1920), font_path=MALAYALAM_FONT):
+    """Big bold yellow question at the top of the frame (up to two lines), on
+    screen for the whole Short — the question is what makes people stay."""
+    W, H = size
+    img  = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    words = question.split()
+    for fs in range(int(W * 0.085), 30, -2):
+        font  = ImageFont.truetype(font_path, fs)
+        lines, cur = [], ""
+        for w in words:
+            test = f"{cur} {w}".strip()
+            if cur and draw.textlength(test, font=font) > W * 0.86:
+                lines.append(cur)
+                cur = w
+            else:
+                cur = test
+        lines.append(cur)
+        if len(lines) <= 2:
+            break
+    line_h = int(fs * 1.55)
+    y = int(H * 0.10)
+    for line in lines:
+        lw = draw.textlength(line, font=font)
+        x  = (W - lw) / 2
+        draw.text((x + 4, y + 5), line, font=font, fill=(0, 0, 0, 160))          # soft shadow
+        draw.text((x, y), line, font=font, fill=(255, 221, 0),
+                  stroke_width=max(4, fs // 14), stroke_fill=(0, 0, 0))
+        y += line_h
+    path = "/tmp/question_overlay.png"
+    img.save(path)
+    return path
+
+
 # ─────────────────────────────────────────────
 # 5️⃣  Pexels video URLs
 # ─────────────────────────────────────────────
@@ -922,6 +976,14 @@ def create_youtube_short(quote, lang="en"):
         # Spoken opening: "<title>. Part <N>."
         hook     = f"{quote['title']}. ഭാഗം {ML_NUMBERS.get(part, part)}."
         items    = [quote]
+    elif cfg["kind"] == "explainer":
+        sport    = None
+        gender   = quote.get("voice", "male")
+        keywords = quote["footage"].split("|") + FACT_TOPICS["space"]["keywords"]
+        nasa_kws = [k for k in quote.get("nasa", "").split("|") if k] + FACT_TOPICS["space"]["nasa"]
+        overlay  = dict(question=quote["question"])
+        hook     = quote["question"]
+        items    = [quote]
     elif cfg["kind"] == "fact":
         items    = quote.get("items", [quote])
         topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
@@ -974,11 +1036,17 @@ def create_youtube_short(quote, lang="en"):
 
     slide_clips = build_quote_slides(segments, seg_starts, seg_durs, size=(W, H), lang=lang)
 
-    # Author name (or fact topic) stays on screen for the whole quote/fact
-    author_start = seg_starts[1]
+    # Author name (or fact topic) stays on screen for the whole quote/fact;
+    # a space question is on screen from the very first frame
+    if "question" in overlay:
+        author_start = 0
+        overlay_png  = create_question_image(overlay["question"], (W, H), cfg["author_font"])
+    else:
+        author_start = seg_starts[1]
+        overlay_png  = create_author_image(size=(W, H), font_path=cfg["author_font"],
+                                           uppercase=cfg["uppercase"], **overlay)
     author_clip = (
-        ImageClip(create_author_image(size=(W, H), font_path=cfg["author_font"],
-                                      uppercase=cfg["uppercase"], **overlay))
+        ImageClip(overlay_png)
         .set_start(author_start)
         .set_duration(seg_starts[-1] - author_start)
         .crossfadein(0.3)
@@ -1009,6 +1077,15 @@ def build_metadata(quote, sport, lang="en"):
         return _fact_metadata(quote, cfg)
     if cfg["kind"] == "story":
         return _story_metadata(quote, cfg, lang)
+    if cfg["kind"] == "explainer":
+        title = f"{quote['question']} {cfg['title_tags']}"
+        if len(title) > 100:
+            title = f"{quote['question']} #space #shorts"
+        description = (f"{quote['question']}\n\n{quote_text}\n\n{cfg['comment_ask']}\n\n"
+                       f"{cfg['hashtags']}")
+        tags = cfg["tags"] + [k for k in quote.get("nasa", "").split("|") if k]
+        return (title.replace("<", "").replace(">", ""), description,
+                list(dict.fromkeys(tags)))
     author     = quote["author"]
     shown_name = quote.get(f"author_{lang}")
     suffix     = f" – {author} #shorts" + (" #malayalam" if cfg["yt_language"] == "ml" else "")
@@ -1167,7 +1244,7 @@ def _git_commit_status(quote_id, lang: str = "en") -> bool:
         return True
 
     label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact",
-              "en_facts": "English fact",
+              "en_facts": "English fact", "ml_space": "Malayalam space question",
               "ml_story": "Malayalam story part"}.get(lang, lang)
     if isinstance(quote_id, (list, tuple)):
         label, quote_id = label + "s", ",".join(str(i) for i in quote_id)
