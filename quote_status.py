@@ -12,6 +12,7 @@ One file per content stream:
   "ml_facts" → facts_ml.py    (Malayalam facts: space, aliens, surprising facts)
   "ml_story" → stories_ml.py  (Malayalam mystery stories, posted part by part)
   "en_facts" → facts_en.py    (English curiosity facts)
+  "ml_space" → space_ml.py    (Malayalam "big question" space explainers)
 
 How it works:
   - Reads DEFAULT_QUOTES from the language's file at runtime
@@ -49,6 +50,7 @@ LANGUAGES = {
     "ml_facts": {"module": "facts_ml",  "name": "Malayalam facts"},
     "ml_story": {"module": "stories_ml", "name": "Malayalam stories"},
     "en_facts": {"module": "facts_en",  "name": "English facts"},
+    "ml_space": {"module": "space_ml",  "name": "Malayalam space questions"},
 }
 
 
@@ -99,6 +101,17 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
         lines.append('    "voice"     : "male" | "female"  (same narrator for every part),\n')
         lines.append('    "footage"   : English Pexels searches for this part, separated by "|",\n')
         lines.append('    "video_id"  : YouTube id once posted (later parts link back to it),\n')
+    elif lang == "ml_space":
+        lines.append('Central store for the Malayalam space-question Shorts used by the YouTube Shorts bot.\n')
+        lines.append('Each entry asks one big question and explains it (one Short per entry).\n')
+        lines.append('\n')
+        lines.append('Each entry is a dict with these fields:\n')
+        lines.append('  {\n')
+        lines.append('    "id"        : unique int  (never reuse / reorder),\n')
+        lines.append('    "question"  : the question in Malayalam (title + big text on screen + first line),\n')
+        lines.append('    "text"      : the spoken explanation in Malayalam,\n')
+        lines.append('    "nasa"      : NASA video library searches, separated by "|",\n')
+        lines.append('    "footage"   : English Pexels searches (fallback footage), separated by "|",\n')
     elif lang in ("ml_facts", "en_facts"):
         word = "Malayalam" if lang == "ml_facts" else "English"
         lines.append(f'Central store for all {word} facts used by the YouTube Shorts bot.\n')
@@ -127,7 +140,8 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('quote_status.py reads and writes the "status" / "posted_at" fields\n')
     lines.append('directly in this file so everything stays in one place — no separate JSON needed.\n')
     lines.append('\n')
-    noun = {"ml_facts": "fact", "en_facts": "fact", "ml_story": "story part"}.get(lang, "quote")
+    noun = {"ml_facts": "fact", "en_facts": "fact", "ml_story": "story part",
+            "ml_space": "question"}.get(lang, "quote")
     lines.append(f'To add a new {noun}: append a new dict with a unique id,\n')
     lines.append('status="pending", and posted_at=None.\n')
     lines.append(f'{noun.capitalize()}s are never re-posted: once every {noun} is posted the bot stops\n')
