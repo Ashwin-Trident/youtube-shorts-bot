@@ -168,7 +168,7 @@ DEFAULT_QUOTES = [
         "text": "No matter how good you get you can always get better, and that's the exciting part.",
         "author": "Tiger Woods",
         "status": "posted",
-        "posted_at": "2026-09-20T22:53:16",
+        "posted_at": "2026-09-26T02:26:04",
     },
     {
         "id": 22,
