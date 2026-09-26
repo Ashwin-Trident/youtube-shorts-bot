@@ -1,0 +1,58 @@
+name: Inspect reference Short
+
+# Research helper: fetches a reference Short's title, description, stats,
+# transcript and a few frames, and commits them to .github/inspect/out/.
+# Runs only when .github/inspect/request.txt changes on the working branch.
+# It never uploads or posts anything.
+on:
+  push:
+    branches: [claude/laughing-maxwell-giwoqc]
+    paths: ['.github/inspect/request.txt']
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch metadata, transcript and frames
+        run: |
+          URL=$(head -1 .github/inspect/request.txt | tr -d '[:space:]')
+          ID=$(echo "$URL" | sed -E 's#.*/shorts/([^?/]+).*#\1#')
+          OUT=.github/inspect/out
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          echo "$URL" > "$OUT/url.txt"
+          curl -sfL "https://www.youtube.com/oembed?url=https://www.youtube.com/shorts/$ID&format=json" -o "$OUT/oembed.json" || echo "oembed failed" >> "$OUT/errors.txt"
+          for t in hqdefault hq1 hq2 hq3 maxresdefault; do
+            curl -sfL "https://i.ytimg.com/vi/$ID/$t.jpg" -o "$OUT/thumb_$t.jpg" || rm -f "$OUT/thumb_$t.jpg"
+          done
+          pip install -q yt-dlp
+          yt-dlp --skip-download --write-info-json --write-auto-subs --write-subs \
+                 --sub-langs "en.*,ml.*" --sub-format vtt -o "/tmp/v" "$URL" \
+                 > "$OUT/ytdlp_meta.log" 2>&1 || echo "yt-dlp metadata failed" >> "$OUT/errors.txt"
+          if [ -f /tmp/v.info.json ]; then
+            jq '{title, description, channel, uploader, duration, view_count, like_count,
+                 comment_count, upload_date, tags, categories, width, height,
+                 chapters, heatmap: (.heatmap // null)}' /tmp/v.info.json > "$OUT/info.json"
+          fi
+          cp /tmp/v*.vtt "$OUT/" 2>/dev/null || true
+          if yt-dlp -f "worst[ext=mp4]/worst" -o /tmp/v.mp4 "$URL" > "$OUT/ytdlp_video.log" 2>&1; then
+            ffprobe -v error -show_entries format=duration:stream=width,height,codec_type -of json /tmp/v.mp4 > "$OUT/probe.json" || true
+            ffmpeg -loglevel error -i /tmp/v.mp4 -vf "fps=1/2,scale=360:-2" "$OUT/frame_%02d.jpg" || true
+            ffmpeg -loglevel error -i /tmp/v.mp4 -vn -ac 1 -ar 16000 /tmp/a.wav || true
+            ffmpeg -i /tmp/a.wav -af volumedetect -f null - 2> "$OUT/audio_volume.log" || true
+          else
+            echo "video download failed" >> "$OUT/errors.txt"
+          fi
+          ls -la "$OUT"
+
+      - name: Commit results
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/inspect/out
+          git commit -m "chore: reference Short inspection results [skip ci]" || exit 0
+          git push
