@@ -11,6 +11,7 @@ One file per content stream:
   "ml"       → quotes_ml.py   (Malayalam sports quotes)
   "ml_facts" → facts_ml.py    (Malayalam facts: space, aliens, surprising facts)
   "ml_story" → stories_ml.py  (Malayalam mystery stories, posted part by part)
+  "en_facts" → facts_en.py    (English curiosity facts)
 
 How it works:
   - Reads DEFAULT_QUOTES from the language's file at runtime
@@ -47,6 +48,7 @@ LANGUAGES = {
     "ml":       {"module": "quotes_ml", "name": "Malayalam"},
     "ml_facts": {"module": "facts_ml",  "name": "Malayalam facts"},
     "ml_story": {"module": "stories_ml", "name": "Malayalam stories"},
+    "en_facts": {"module": "facts_en",  "name": "English facts"},
 }
 
 
@@ -97,13 +99,14 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
         lines.append('    "voice"     : "male" | "female"  (same narrator for every part),\n')
         lines.append('    "footage"   : English Pexels searches for this part, separated by "|",\n')
         lines.append('    "video_id"  : YouTube id once posted (later parts link back to it),\n')
-    elif lang == "ml_facts":
-        lines.append('Central store for all Malayalam facts used by the YouTube Shorts bot.\n')
+    elif lang in ("ml_facts", "en_facts"):
+        word = "Malayalam" if lang == "ml_facts" else "English"
+        lines.append(f'Central store for all {word} facts used by the YouTube Shorts bot.\n')
         lines.append('\n')
         lines.append('Each entry is a dict with these fields:\n')
         lines.append('  {\n')
         lines.append('    "id"        : unique int  (never reuse / reorder),\n')
-        lines.append('    "text"      : the fact in Malayalam (spoken + shown as captions),\n')
+        lines.append(f'    "text"      : the fact in {word} (spoken + shown as captions),\n')
         lines.append('    "topic"     : "space" | "aliens" | "animals" | "body" | "earth"\n')
         lines.append('                  (picks the on-screen label and fallback footage),\n')
         lines.append('    "footage"   : English Pexels search term for this fact\'s background video,\n')
@@ -124,7 +127,7 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('quote_status.py reads and writes the "status" / "posted_at" fields\n')
     lines.append('directly in this file so everything stays in one place — no separate JSON needed.\n')
     lines.append('\n')
-    noun = {"ml_facts": "fact", "ml_story": "story part"}.get(lang, "quote")
+    noun = {"ml_facts": "fact", "en_facts": "fact", "ml_story": "story part"}.get(lang, "quote")
     lines.append(f'To add a new {noun}: append a new dict with a unique id,\n')
     lines.append('status="pending", and posted_at=None.\n')
     lines.append(f'{noun.capitalize()}s are never re-posted: once every {noun} is posted the bot stops\n')

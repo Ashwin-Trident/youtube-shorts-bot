@@ -134,6 +134,34 @@ LANG_CONFIG = {
         "yt_language":   "ml",
         "category":      "28",   # Science & Technology
     },
+    "en_facts": {
+        "voices":        EDGE_VOICES,
+        "hooks":         ["Did you know this?", "Most people don't know this.",
+                          "This sounds fake, but it's true."],
+        "ending":        "Which one shocked you the most? Comment below, and follow for more.",
+        "caption_font":  BOLD_FONT,
+        "author_font":   BOLD_FONT,
+        "caption_chars": 16,
+        "line_spacing":  1.22,
+        "uppercase":     True,
+        "hashtags":      "#shorts #facts #didyouknow #funfacts #mindblowing #science",
+        "tags":          ["facts", "did you know", "fun facts", "interesting facts",
+                          "mind blowing facts", "things you didn't know", "shorts"],
+        "kind":          "fact",
+        "yt_language":   "en",
+        "category":      "27",   # Education
+        "numbers":       {1: "Number one.", 2: "Number two.", 3: "Number three.",
+                          4: "Number four.", 5: "Number five."},
+        # Curiosity hooks / titles — picked per Short (stable for a given set of facts)
+        "fact_hooks":    ["{n} facts about {about} that sound fake, but they're true. Wait for number three.",
+                          "{n} things about {about} nobody ever told you. Number three is crazy.",
+                          "You won't believe these {n} facts about {about}. Watch till the end."],
+        "fact_titles":   ["{N} Facts About {About} That Sound Fake 🤯",
+                          "{N} Things About {About} Nobody Told You 😳",
+                          "You Won't Believe These {N} Facts About {About} 🤯"],
+        "title_suffix":  " #shorts #facts",
+        "comment_ask":   "Which fact surprised you the most? Tell us in the comments 👇",
+    },
     "ml_story": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # built from the story title + part number
@@ -188,7 +216,19 @@ def fact_items(fact, lang):
     return [fact] + others[:FACTS_PER_VIDEO - 1]
 
 
-def fact_list_hook(topic, n):
+def topic_text(topic, key, lang):
+    """Topic label/about phrase in the stream's language (English streams use *_en)."""
+    if LANG_CONFIG[lang]["yt_language"] == "en":
+        return topic.get(f"{key}_en", topic[key])
+    return topic[key]
+
+
+def fact_list_hook(topic, n, lang="ml_facts", seed=0):
+    cfg = LANG_CONFIG[lang]
+    if cfg.get("fact_hooks"):
+        tpl = cfg["fact_hooks"][seed % len(cfg["fact_hooks"])]
+        return tpl.format(n=str(n) if n > 3 else ["", "One", "Two", "Three"][n],
+                          about=topic_text(topic, "about", lang))
     """e.g. "ബഹിരാകാശത്തെ കുറിച്ച് അധികമാർക്കും അറിയാത്ത മൂന്ന് കാര്യങ്ങൾ."
     = "Three things most people don't know about space." """
     # + "The last one will surprise you." — keeps people watching to the end
@@ -202,21 +242,26 @@ FACT_TOPICS = {
                 "about": "ബഹിരാകാശത്തെ കുറിച്ച്",   # about space
                 "keywords": ["galaxy space", "milky way night sky", "nebula space",
                              "stars universe", "outer space"],
-                "nasa": ["galaxy", "hubble galaxy", "milky way", "nebula", "webb galaxy"]},
+                "nasa": ["galaxy", "hubble galaxy", "milky way", "nebula", "webb galaxy"],
+                "label_en": "SPACE FACTS", "about_en": "space"},
     "aliens":  {"label": "അന്യഗ്രഹ ജീവൻ",      # Alien life
                 "about": "അന്യഗ്രഹ ജീവനെ കുറിച്ച്",  # about alien life
                 "keywords": ["outer space", "milky way night sky", "radio telescope",
                              "galaxy space"],
-                "nasa": ["exoplanet", "europa", "galaxy", "hubble"]},
+                "nasa": ["exoplanet", "europa", "galaxy", "hubble"],
+                "label_en": "ALIEN LIFE", "about_en": "alien life"},
     "animals": {"label": "ജീവലോകം",           # The living world
                 "about": "ജീവികളെ കുറിച്ച്",         # about animals
-                "keywords": ["underwater", "wildlife", "ocean"]},
+                "keywords": ["underwater", "wildlife", "ocean"],
+                "label_en": "ANIMAL FACTS", "about_en": "animals"},
     "body":    {"label": "മനുഷ്യശരീരം",        # Human body
                 "about": "നമ്മുടെ ശരീരത്തെ കുറിച്ച്",  # about our body
-                "keywords": ["human body", "science laboratory", "microscope"]},
+                "keywords": ["human body", "science laboratory", "microscope"],
+                "label_en": "YOUR BODY", "about_en": "your body"},
     "earth":   {"label": "നിങ്ങൾക്കറിയാമോ?",   # Did you know?
                 "about": "ഈ ലോകത്തെ കുറിച്ച്",       # about this world
-                "keywords": ["earth from space", "nature landscape", "storm clouds"]},
+                "keywords": ["earth from space", "nature landscape", "storm clouds"],
+                "label_en": "PLANET EARTH", "about_en": "our planet"},
     "kerala":  {"label": "കേരളം",               # Kerala
                 "about": "നമ്മുടെ കേരളത്തെ കുറിച്ച്",  # about our Kerala
                 "keywords": ["kerala backwaters", "kerala village", "coconut trees",
@@ -224,10 +269,16 @@ FACT_TOPICS = {
     "mind":    {"label": "മനസ്സിന്റെ രഹസ്യങ്ങൾ",  # Secrets of the mind
                 "about": "നമ്മുടെ മനസ്സിനെ കുറിച്ച്",  # about our mind
                 "keywords": ["brain", "thinking person", "city people walking",
-                             "dreamy light"]},
+                             "dreamy light"],
+                "label_en": "YOUR BRAIN", "about_en": "your brain"},
     "food":    {"label": "ഭക്ഷണം",             # Food
                 "about": "നമ്മൾ കഴിക്കുന്ന ഭക്ഷണത്തെ കുറിച്ച്",  # about the food we eat
-                "keywords": ["indian food", "spices", "fresh fruits", "cooking kitchen"]},
+                "keywords": ["indian food", "spices", "fresh fruits", "cooking kitchen"],
+                "label_en": "FOOD FACTS", "about_en": "the food you eat"},
+    "history": {"label": "ചരിത്രം",             # History
+                "about": "ചരിത്രത്തെ കുറിച്ച്",      # about history
+                "keywords": ["ancient ruins", "old library", "museum", "old map"],
+                "label_en": "HISTORY FACTS", "about_en": "history"},
 }
 
 
@@ -310,7 +361,8 @@ def author_profile(author):
 # Streams left out of the automatic rotation until this UTC date (YYYY-MM-DD).
 # A manual run with an explicit language still posts them.
 # 26 Sep – 6 Oct 2026: only "things people don't know" (Malayalam facts) Shorts
-PAUSED_UNTIL = {"en": "2026-10-06", "ml": "2026-10-06", "ml_story": "2026-10-06"}
+PAUSED_UNTIL = {"en": "2026-10-06", "ml": "2026-10-06", "ml_story": "2026-10-06",
+                "en_facts": "2026-10-06"}   # English facts: manual runs only for now
 
 
 def is_paused(lang):
@@ -878,8 +930,9 @@ def create_youtube_short(quote, lang="en"):
         own      = [f["footage"] for f in items]
         keywords = own + random.sample(topic["keywords"], len(topic["keywords"]))
         nasa_kws = own + topic.get("nasa", []) if topic.get("nasa") else []
-        overlay  = dict(author=topic["label"], prefix="")
-        hook     = fact_list_hook(topic, len(items)) if len(items) > 1 else get_hook(None, lang)
+        overlay  = dict(author=topic_text(topic, "label", lang), prefix="")
+        hook     = (fact_list_hook(topic, len(items), lang, seed=items[0]["id"])
+                    if len(items) > 1 else get_hook(None, lang))
     else:
         # Name as spoken/shown in this language; footage + voice use the English name
         shown_name = quote.get(f"author_{lang}", quote["author"])
@@ -893,7 +946,8 @@ def create_youtube_short(quote, lang="en"):
     if cfg["kind"] == "fact" and len(items) > 1:
         body = []
         for i, f in enumerate(items, 1):
-            body += [f"{ML_NUMBERS[i]}."] + split_into_segments(f["text"], uppercase=False)
+            number = cfg["numbers"][i] if cfg.get("numbers") else f"{ML_NUMBERS[i]}."
+            body += [number] + split_into_segments(f["text"], uppercase=cfg["uppercase"])
     else:
         body = split_into_segments(quote_text, uppercase=cfg["uppercase"])
     ending = cfg["ending"]
@@ -1002,10 +1056,14 @@ def _story_metadata(part_entry, cfg, lang):
 def _fact_metadata(fact, cfg):
     """Fact Shorts: the fact (or "N things about <topic>") as the title, all facts in the description."""
     items  = fact.get("items", [fact])
-    suffix = " #shorts #malayalam #facts"
+    suffix = cfg.get("title_suffix", " #shorts #malayalam #facts")
     budget = 100 - len(suffix)
-    if len(items) > 1:
-        topic = FACT_TOPICS.get(fact.get("topic"), FACT_TOPICS["earth"])
+    topic  = FACT_TOPICS.get(fact.get("topic"), FACT_TOPICS["earth"])
+    if len(items) > 1 and cfg.get("fact_titles"):
+        about = topic.get("about_en", topic["about"])
+        tpl   = cfg["fact_titles"][items[0]["id"] % len(cfg["fact_titles"])]
+        text  = tpl.format(N=len(items), About=" ".join(w.capitalize() for w in about.split()))
+    elif len(items) > 1:
         text  = f"{topic['about']} അധികമാർക്കും അറിയാത്ത {len(items)} കാര്യങ്ങൾ"
     else:
         text  = fact["text"].strip()
@@ -1015,13 +1073,14 @@ def _fact_metadata(fact, cfg):
     topic_tag = {"space": " #space #galaxy #universe", "aliens": " #aliens #space #universe",
                  "animals": " #animals #nature", "body": " #humanbody",
                  "earth": " #earth #nature", "kerala": " #kerala #keralafacts",
-                 "mind": " #psychology #mind", "food": " #food #foodfacts"}.get(fact.get("topic"), "")
+                 "mind": " #psychology #mind", "food": " #food #foodfacts",
+                 "history": " #history #historyfacts"}.get(fact.get("topic"), "")
     if len(items) > 1:
         body = "\n\n".join(f"{i}. {f['text']}" for i, f in enumerate(items, 1))
     else:
         body = fact["text"]
     # Question for the comments ("How many of these did you know? Tell us 👇")
-    ask = "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റിൽ പറയൂ 👇"
+    ask = cfg.get("comment_ask", "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റിൽ പറയൂ 👇")
     description = f"{body}\n\n{ask}\n\n{cfg['hashtags']}{topic_tag}"
     tags = cfg["tags"] + [fact.get("topic", "")] + [f.get("footage", "") for f in items]
     return title, description, list(dict.fromkeys(t for t in tags if t))
@@ -1108,6 +1167,7 @@ def _git_commit_status(quote_id, lang: str = "en") -> bool:
         return True
 
     label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact",
+              "en_facts": "English fact",
               "ml_story": "Malayalam story part"}.get(lang, lang)
     if isinstance(quote_id, (list, tuple)):
         label, quote_id = label + "s", ",".join(str(i) for i in quote_id)
