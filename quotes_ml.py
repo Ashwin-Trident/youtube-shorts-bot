@@ -37,8 +37,8 @@ DEFAULT_QUOTES = [
         "text": "ആത്മവിശ്വാസവും കഠിനാധ്വാനവും എന്നും നിങ്ങൾക്ക് വിജയം നേടിത്തരും.",
         "author": "Virat Kohli",
         "author_ml": "വിരാട് കോലി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-26T06:38:40",
     },
     {
         "id": 3,
