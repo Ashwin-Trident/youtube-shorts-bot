@@ -214,8 +214,8 @@ DEFAULT_QUOTES = [
         "text": "നീലത്തിമിംഗലത്തിന്റെ ഹൃദയത്തിന് ഒരു ചെറിയ കാറിന്റെ വലിപ്പമുണ്ട്.",
         "topic": "animals",
         "footage": "whale",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-27T19:37:29",
     },
     {
         "id": 25,
@@ -278,8 +278,8 @@ DEFAULT_QUOTES = [
         "text": "നീരാളിക്ക് മൂന്ന് ഹൃദയങ്ങളും നീല നിറമുള്ള രക്തവുമുണ്ട്.",
         "topic": "animals",
         "footage": "octopus",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-27T19:37:29",
     },
     {
         "id": 33,
@@ -326,8 +326,8 @@ DEFAULT_QUOTES = [
         "text": "ഭൂമിയിൽ മരങ്ങൾ ഉണ്ടാകുന്നതിനും മുമ്പേ സ്രാവുകൾ ഉണ്ടായിരുന്നു.",
         "topic": "animals",
         "footage": "shark",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-27T19:37:29",
     },
     {
         "id": 39,
