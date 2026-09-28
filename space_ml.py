@@ -53,8 +53,8 @@ DEFAULT_QUOTES = [
         "nasa": "sun|solar flare",
         "footage": "sun space|earth from space|night sky stars",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-28T18:00:55",
     },
     {
         "id": 4,
