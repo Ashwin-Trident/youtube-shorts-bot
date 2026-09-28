@@ -43,8 +43,8 @@ DEFAULT_QUOTES = [
         "nasa": "black hole|black hole animation",
         "footage": "black hole space|galaxy space|outer space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-28T03:38:59",
     },
     {
         "id": 3,
