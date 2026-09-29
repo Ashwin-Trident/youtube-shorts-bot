@@ -2,7 +2,7 @@ name: YouTube Shorts Bot CI
 
 on:
   schedule:
-    - cron: '0 */8 * * *'   # 3 posts/day — well inside the YouTube upload quota (~6/day)
+    - cron: '0 */4 * * *'   # 6 posts/day — the most the default YouTube upload quota allows
   workflow_dispatch:         # manual trigger
     inputs:
       language:

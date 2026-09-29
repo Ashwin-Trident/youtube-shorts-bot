@@ -381,8 +381,11 @@ def author_profile(author):
 # Streams left out of the automatic rotation until this UTC date (YYYY-MM-DD).
 # A manual run with an explicit language still posts them.
 # 26 Sep – 6 Oct 2026: only "things people don't know" (Malayalam facts) Shorts
-# (English curiosity facts stay in the rotation, alternating with Malayalam facts)
-PAUSED_UNTIL = {"en": "2026-10-06", "ml": "2026-10-06", "ml_story": "2026-10-06"}
+# Malayalam only until further notice: English streams stay paused until this
+# date is changed (manual runs with language=en / en_facts still post).
+UNTIL_FURTHER_NOTICE = "9999-12-31"
+PAUSED_UNTIL = {"en": UNTIL_FURTHER_NOTICE, "en_facts": UNTIL_FURTHER_NOTICE,
+                "ml": "2026-10-06", "ml_story": "2026-10-06"}
 
 
 def is_paused(lang):
