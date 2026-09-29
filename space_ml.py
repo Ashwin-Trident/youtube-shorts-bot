@@ -93,8 +93,8 @@ DEFAULT_QUOTES = [
         "nasa": "spacewalk|astronaut|space station",
         "footage": "astronaut space|outer space|earth from space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-29T10:13:22",
     },
     {
         "id": 8,
