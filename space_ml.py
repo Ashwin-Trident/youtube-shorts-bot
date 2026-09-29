@@ -63,8 +63,8 @@ DEFAULT_QUOTES = [
         "nasa": "hubble deep field|universe|galaxy",
         "footage": "galaxy space|stars universe|milky way night sky",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-29T20:29:33",
     },
     {
         "id": 5,
