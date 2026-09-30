@@ -83,8 +83,8 @@ DEFAULT_QUOTES = [
         "nasa": "sun|planetary nebula|nebula",
         "footage": "sun space|nebula space|stars space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-30T23:28:39",
     },
     {
         "id": 7,
