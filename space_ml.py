@@ -73,8 +73,8 @@ DEFAULT_QUOTES = [
         "nasa": "exoplanet|galaxy|milky way",
         "footage": "radio telescope|galaxy space|planet space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-30T10:13:55",
     },
     {
         "id": 6,
