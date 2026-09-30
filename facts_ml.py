@@ -86,8 +86,8 @@ DEFAULT_QUOTES = [
         "text": "വോയേജർ പേടകത്തിൽ, അന്യഗ്രഹജീവികൾക്കായി ഭൂമിയിലെ ശബ്ദങ്ങളും അമ്പത്തിയഞ്ച് ഭാഷകളിലെ ആശംസകളും അടങ്ങിയ ഒരു സ്വർണ്ണ റെക്കോർഡുണ്ട്.",
         "topic": "aliens",
         "footage": "spacecraft space",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-30T17:30:07",
     },
     {
         "id": 9,
@@ -142,8 +142,8 @@ DEFAULT_QUOTES = [
         "text": "ശനിയുടെ ഉപഗ്രഹമായ എൻസെലാഡസ് ബഹിരാകാശത്തേക്ക് വെള്ളം ചീറ്റുന്നുണ്ട്. അവിടെ ജീവൻ ഉണ്ടാകാമെന്ന് ശാസ്ത്രജ്ഞർ കരുതുന്നു.",
         "topic": "aliens",
         "footage": "geyser",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-30T17:30:07",
     },
     {
         "id": 16,
@@ -198,8 +198,8 @@ DEFAULT_QUOTES = [
         "text": "ആയിരത്തി തൊള്ളായിരത്തി എഴുപത്തിയേഴിൽ ബഹിരാകാശത്ത് നിന്ന് ഒരു ശക്തമായ റേഡിയോ സിഗ്നൽ ലഭിച്ചു. വൗ സിഗ്നൽ എന്ന് അറിയപ്പെടുന്ന അതിന്റെ ഉറവിടം ഇന്നും ആർക്കും വിശദീകരിക്കാനായിട്ടില്ല.",
         "topic": "aliens",
         "footage": "radio telescope",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-09-30T17:30:07",
     },
     {
         "id": 23,
