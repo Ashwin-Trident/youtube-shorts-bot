@@ -381,11 +381,10 @@ def author_profile(author):
 # Streams left out of the automatic rotation until this UTC date (YYYY-MM-DD).
 # A manual run with an explicit language still posts them.
 # 26 Sep – 6 Oct 2026: only "things people don't know" (Malayalam facts) Shorts
-# Malayalam only until further notice: English streams stay paused until this
-# date is changed (manual runs with language=en / en_facts still post).
+# Streams left out of the automatic rotation until a date. English quotes are
+# off until further notice (English = curiosity facts); manual runs still post.
 UNTIL_FURTHER_NOTICE = "9999-12-31"
-PAUSED_UNTIL = {"en": UNTIL_FURTHER_NOTICE, "en_facts": UNTIL_FURTHER_NOTICE,
-                "ml": "2026-10-06", "ml_story": "2026-10-06"}
+PAUSED_UNTIL = {"en": UNTIL_FURTHER_NOTICE, "ml": "2026-10-06", "ml_story": "2026-10-06"}
 
 
 def is_paused(lang):
@@ -414,8 +413,14 @@ def pick_language():
     for l in LANGUAGES:
         if is_paused(l):
             print(f"⏸  {LANGUAGES[l]['name']} paused until {PAUSED_UNTIL[l]}")
-    lang = min(available, key=last_posted_at)
-    print(f"🌐 Language: {LANGUAGES[lang]['name']}  (posted least recently)")
+    # One Malayalam, one English: the language whose latest post is older goes
+    # next, then the stream in that language that was posted least recently.
+    groups = {}
+    for l in available:
+        groups.setdefault(LANG_CONFIG[l]["yt_language"], []).append(l)
+    group = min(groups, key=lambda g: max(last_posted_at(l) for l in groups[g]))
+    lang  = min(groups[group], key=last_posted_at)
+    print(f"🌐 Language: {LANGUAGES[lang]['name']}  (alternating Malayalam / English)")
     return lang
 
 
