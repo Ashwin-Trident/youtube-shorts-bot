@@ -103,8 +103,8 @@ DEFAULT_QUOTES = [
         "nasa": "milky way|night sky|galaxy",
         "footage": "milky way night sky|stars space|night sky stars",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-01T17:58:19",
     },
     {
         "id": 9,
