@@ -113,8 +113,8 @@ DEFAULT_QUOTES = [
         "nasa": "dark matter|galaxy cluster|galaxy",
         "footage": "galaxy space|nebula space|outer space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-02T17:15:27",
     },
     {
         "id": 10,
