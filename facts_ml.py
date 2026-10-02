@@ -222,8 +222,8 @@ DEFAULT_QUOTES = [
         "text": "വേനൽക്കാലത്ത് ചൂടുകൊണ്ട് ഇരുമ്പ് വികസിക്കുന്നതിനാൽ ഈഫൽ ടവറിന്റെ ഉയരം പതിനഞ്ച് സെന്റിമീറ്റർ വരെ കൂടും.",
         "topic": "earth",
         "footage": "eiffel tower",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-02T03:25:37",
     },
     {
         "id": 26,
@@ -286,8 +286,8 @@ DEFAULT_QUOTES = [
         "text": "വാഴപ്പഴത്തിൽ ചെറിയ അളവിൽ റേഡിയോ ആക്ടീവ് പൊട്ടാസ്യം ഉണ്ട്. പക്ഷേ അത് ഒട്ടും അപകടകരമല്ല.",
         "topic": "earth",
         "footage": "banana",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-02T03:25:37",
     },
     {
         "id": 34,
@@ -318,8 +318,8 @@ DEFAULT_QUOTES = [
         "text": "കേരളത്തിലെ കുട്ടനാട്, സമുദ്രനിരപ്പിന് താഴെ കൃഷി ചെയ്യുന്ന ലോകത്തിലെ വളരെ കുറച്ച് സ്ഥലങ്ങളിൽ ഒന്നാണ്.",
         "topic": "earth",
         "footage": "kerala backwaters",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-02T03:25:37",
     },
     {
         "id": 38,
