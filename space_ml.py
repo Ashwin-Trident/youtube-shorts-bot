@@ -123,8 +123,8 @@ DEFAULT_QUOTES = [
         "nasa": "moon|earth and moon|lunar",
         "footage": "moon surface|earth from space|ocean waves",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-03T15:35:37",
     },
     {
         "id": 11,
