@@ -133,8 +133,8 @@ DEFAULT_QUOTES = [
         "nasa": "galaxy|stars|nebula",
         "footage": "stars space|light rays space|outer space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-04T10:28:37",
     },
     {
         "id": 12,
