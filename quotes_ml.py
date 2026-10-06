@@ -45,8 +45,8 @@ DEFAULT_QUOTES = [
         "text": "ഒന്നിനും പരിധി നിശ്ചയിക്കരുത്. എത്രത്തോളം സ്വപ്നം കാണുന്നുവോ, അത്രത്തോളം ദൂരം നിങ്ങൾ എത്തും.",
         "author": "Michael Phelps",
         "author_ml": "മൈക്കൽ ഫെൽപ്സ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-06T17:43:22",
     },
     {
         "id": 4,
