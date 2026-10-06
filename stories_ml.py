@@ -78,9 +78,9 @@ DEFAULT_QUOTES = [
         "title": "കാണാതായ വഞ്ചി",
         "voice": "male",
         "footage": "foggy river morning|backwaters boat|lantern night",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "GPucbnclkCI",
+        "status": "posted",
+        "posted_at": "2026-10-06T01:16:44",
     },
     {
         "id": 5,
