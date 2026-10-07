@@ -143,7 +143,7 @@ DEFAULT_QUOTES = [
         "nasa": "universe|galaxy|black hole",
         "footage": "galaxy space|stars universe|black hole space",
         "voice": "male",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-07T10:52:31",
     },
 ]
