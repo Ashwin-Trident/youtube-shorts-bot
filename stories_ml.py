@@ -91,9 +91,9 @@ DEFAULT_QUOTES = [
         "title": "കാണാതായ വഞ്ചി",
         "voice": "male",
         "footage": "river bridge|backwaters kerala|water splash",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "yqv_7kGmgpU",
+        "status": "posted",
+        "posted_at": "2026-10-08T21:03:49",
     },
     {
         "id": 6,
