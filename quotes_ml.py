@@ -53,8 +53,8 @@ DEFAULT_QUOTES = [
         "text": "ഇവിടെ ജന്മസിദ്ധമായ കഴിവല്ല, കഠിനാധ്വാനമാണ്. ഇതൊരു അഭിനിവേശമാണ്.",
         "author": "Conor McGregor",
         "author_ml": "കോണർ മക്ഗ്രെഗർ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-09T17:50:51",
     },
     {
         "id": 5,
