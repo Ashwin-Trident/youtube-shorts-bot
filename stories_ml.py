@@ -104,9 +104,9 @@ DEFAULT_QUOTES = [
         "title": "കാണാതായ വഞ്ചി",
         "voice": "male",
         "footage": "old photograph|backwaters sunset|empty boat",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "gFEDZBenT9Q",
+        "status": "posted",
+        "posted_at": "2026-10-11T03:11:43",
     },
     {
         "id": 7,
