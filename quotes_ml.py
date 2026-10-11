@@ -61,8 +61,8 @@ DEFAULT_QUOTES = [
         "text": "വെറുക്കുന്ന കാര്യം പോലും ഇഷ്ടപ്പെടുന്നതുപോലെ ചെയ്യുന്നതാണ് അച്ചടക്കം.",
         "author": "Mike Tyson",
         "author_ml": "മൈക്ക് ടൈസൺ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-11T17:09:41",
     },
     {
         "id": 6,
