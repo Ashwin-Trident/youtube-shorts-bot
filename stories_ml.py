@@ -117,9 +117,9 @@ DEFAULT_QUOTES = [
         "title": "അവസാനത്തെ ബസ്",
         "voice": "male",
         "footage": "mountain road night|bus night|hairpin bend",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "5hwRIlKGAh4",
+        "status": "posted",
+        "posted_at": "2026-10-14T16:22:10",
     },
     {
         "id": 8,
