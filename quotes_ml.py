@@ -69,8 +69,8 @@ DEFAULT_QUOTES = [
         "text": "നിങ്ങൾ എടുക്കാത്ത ഷോട്ടുകളിൽ നൂറു ശതമാനവും നഷ്ടമാണ്.",
         "author": "Wayne Gretzky",
         "author_ml": "വെയ്ൻ ഗ്രെറ്റ്സ്കി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-15T02:34:11",
     },
     {
         "id": 7,
