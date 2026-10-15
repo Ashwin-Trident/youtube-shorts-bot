@@ -510,8 +510,8 @@ DEFAULT_QUOTES = [
         "text": "Our radio and TV signals have already travelled more than one hundred light years into space.",
         "topic": "aliens",
         "footage": "radio telescope",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-15T22:53:12",
     },
     {
         "id": 62,
