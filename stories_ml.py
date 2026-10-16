@@ -130,9 +130,9 @@ DEFAULT_QUOTES = [
         "title": "അവസാനത്തെ ബസ്",
         "voice": "male",
         "footage": "bus interior night|dark road|fog night",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "gzyI98OtYTg",
+        "status": "posted",
+        "posted_at": "2026-10-16T02:33:49",
     },
     {
         "id": 9,
