@@ -77,8 +77,8 @@ DEFAULT_QUOTES = [
         "text": "തോൽക്കുമെന്ന് നിങ്ങൾ ഭയപ്പെടുന്നുണ്ടെങ്കിൽ, മിക്കവാറും നിങ്ങൾ തോൽക്കും.",
         "author": "Kobe Bryant",
         "author_ml": "കോബി ബ്രയന്റ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-16T19:13:31",
     },
     {
         "id": 8,
