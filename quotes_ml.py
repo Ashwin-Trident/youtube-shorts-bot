@@ -85,8 +85,8 @@ DEFAULT_QUOTES = [
         "text": "എനിക്ക് ആരെയും ഭയമില്ല, പക്ഷേ എല്ലാവരെയും ബഹുമാനിക്കുന്നു.",
         "author": "Roger Federer",
         "author_ml": "റോജർ ഫെഡറർ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-17T21:58:55",
     },
     {
         "id": 9,
