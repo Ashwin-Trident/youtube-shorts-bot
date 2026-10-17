@@ -143,9 +143,9 @@ DEFAULT_QUOTES = [
         "title": "അവസാനത്തെ ബസ്",
         "voice": "male",
         "footage": "old letter|sunrise mountains|mountain viewpoint",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "UpejzOdBnII",
+        "status": "posted",
+        "posted_at": "2026-10-17T14:50:05",
     },
     {
         "id": 10,
