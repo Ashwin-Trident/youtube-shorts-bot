@@ -156,9 +156,9 @@ DEFAULT_QUOTES = [
         "title": "മുത്തശ്ശിയുടെ പെട്ടി",
         "voice": "female",
         "footage": "old wooden box|kerala village house|night torch",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "PpslO_yOe-s",
+        "status": "posted",
+        "posted_at": "2026-10-18T18:31:54",
     },
     {
         "id": 11,
