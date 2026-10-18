@@ -470,8 +470,8 @@ DEFAULT_QUOTES = [
         "text": "When you look at the stars, you are looking into the past, because their light left them long ago.",
         "topic": "space",
         "footage": "stars space",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-18T22:11:57",
     },
     {
         "id": 57,
