@@ -93,8 +93,8 @@ DEFAULT_QUOTES = [
         "text": "മുന്നിലുള്ള മലകളല്ല നിങ്ങളെ തളർത്തുന്നത്, ഷൂസിനുള്ളിലെ ചെറിയൊരു കല്ലാണ്.",
         "author": "Muhammad Ali",
         "author_ml": "മുഹമ്മദ് അലി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-19T02:36:44",
     },
     {
         "id": 10,
