@@ -169,9 +169,9 @@ DEFAULT_QUOTES = [
         "title": "മുത്തശ്ശിയുടെ പെട്ടി",
         "voice": "female",
         "footage": "temple pond|stone steps water|old key",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "ezKsnh6R8GQ",
+        "status": "posted",
+        "posted_at": "2026-10-19T23:23:34",
     },
     {
         "id": 12,
