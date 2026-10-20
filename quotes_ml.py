@@ -109,8 +109,8 @@ DEFAULT_QUOTES = [
         "text": "സ്വപ്നത്തിലെത്താൻ നിങ്ങൾ പോരാടണം. അതിനായി ത്യാഗം ചെയ്യണം, കഠിനാധ്വാനം ചെയ്യണം.",
         "author": "Lionel Messi",
         "author_ml": "ലയണൽ മെസ്സി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-20T22:55:29",
     },
     {
         "id": 12,
