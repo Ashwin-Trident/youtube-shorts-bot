@@ -182,8 +182,8 @@ DEFAULT_QUOTES = [
         "title": "മുത്തശ്ശിയുടെ പെട്ടി",
         "voice": "female",
         "footage": "old letters|old man portrait|kerala village",
-        "video_id": "",
-        "status": "pending",
-        "posted_at": None,
+        "video_id": "uxZ-nFpUN98",
+        "status": "posted",
+        "posted_at": "2026-10-20T16:11:52",
     },
 ]
