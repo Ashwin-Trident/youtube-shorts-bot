@@ -101,8 +101,8 @@ DEFAULT_QUOTES = [
         "text": "ഓരോ മോശം സാഹചര്യത്തെയും നല്ലൊരു സാഹചര്യമാക്കി മാറ്റുക.",
         "author": "Michael Jordan",
         "author_ml": "മൈക്കൽ ജോർദാൻ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-20T02:49:33",
     },
     {
         "id": 11,
