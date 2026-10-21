@@ -1,0 +1,45 @@
+name: Collect upload titles
+
+# Research helper: reads this repo's own bot run logs and lists the title and
+# video id of every upload since 2026-09-24, committed to .github/inspect/.
+# Runs only when .github/inspect/titles_request.txt changes on the working branch.
+on:
+  push:
+    branches: [claude/laughing-maxwell-giwoqc]
+    paths: ['.github/inspect/titles_request.txt']
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read bot run logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUT=.github/inspect/uploads.tsv
+          printf "created_at\tevent\tvideo_id\ttitle\n" > "$OUT"
+          for page in 1 2 3 4; do
+            gh api "repos/${{ github.repository }}/actions/workflows/post_reels.yml/runs?per_page=100&page=$page&created=>=2026-09-24" \
+              --jq '.workflow_runs[] | select(.conclusion=="success") | [.id, .created_at, .event] | @tsv'
+          done > /tmp/runs.tsv
+          wc -l /tmp/runs.tsv
+          while IFS=$'\t' read -r run created event; do
+            job=$(gh api "repos/${{ github.repository }}/actions/runs/$run/jobs" --jq '.jobs[0].id') || continue
+            log=$(gh api "repos/${{ github.repository }}/actions/jobs/$job/logs" 2>/dev/null) || continue
+            title=$(printf '%s\n' "$log" | grep -a "🏷  Title:" | tail -1 | sed 's/.*Title: //')
+            vid=$(printf '%s\n' "$log" | grep -ao "Uploaded! https://youtube.com/shorts/[A-Za-z0-9_-]*" | tail -1 | sed 's#.*/##')
+            [ -n "$vid" ] && printf "%s\t%s\t%s\t%s\n" "$created" "$event" "$vid" "$title" >> "$OUT"
+          done < /tmp/runs.tsv
+          wc -l "$OUT"
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/inspect/uploads.tsv
+          git commit -m "chore: upload titles for channel analysis [skip ci]" || exit 0
+          git push
