@@ -153,8 +153,8 @@ LANG_CONFIG = {
         "numbers":       {1: "Number one.", 2: "Number two.", 3: "Number three.",
                           4: "Number four.", 5: "Number five."},
         # Curiosity hooks / titles — picked per Short (stable for a given set of facts)
-        "fact_hooks":    ["{n} facts about {about} that sound fake, but they're true. Wait for number three.",
-                          "{n} things about {about} nobody ever told you. Number three is crazy.",
+        "fact_hooks":    ["{n} facts about {about} that sound fake, but they're true. Wait for number two.",
+                          "{n} things about {about} nobody ever told you. Number two is crazy.",
                           "You won't believe these {n} facts about {about}. Watch till the end."],
         "fact_titles":   ["{N} Facts About {About} That Sound Fake 🤯",
                           "{N} Things About {About} Nobody Told You 😳",
@@ -210,9 +210,10 @@ STORY_FALLBACK_KEYWORDS = ["night rain window", "misty forest", "dark clouds",
 # ─────────────────────────────────────────────
 # Facts: on-screen topic label + fallback footage
 # Each fact Short covers up to FACTS_PER_VIDEO facts on one topic
-# (~25-30s: a numbered list keeps people watching to the end).
+# (~20s: the channel's best Short was a 19s two-fact list — viewers
+# swipe away around 8s, so a shorter list keeps more of them to the end).
 # ─────────────────────────────────────────────
-FACTS_PER_VIDEO = 3
+FACTS_PER_VIDEO = 2
 ML_NUMBERS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്"}
 
 
