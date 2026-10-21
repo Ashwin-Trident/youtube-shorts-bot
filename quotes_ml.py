@@ -117,8 +117,8 @@ DEFAULT_QUOTES = [
         "text": "വിജയം എത്ര പ്രയാസമേറിയതാണോ, ജയിക്കുമ്പോഴുള്ള സന്തോഷം അത്രയും വലുതായിരിക്കും.",
         "author": "Pele",
         "author_ml": "പെലെ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-21T09:05:28",
     },
     {
         "id": 13,
