@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
 from pydub import AudioSegment
 
+from subscribers import ml_number, subscriber_goal
 from quote_status import (
     LANGUAGES, get_next_quote, get_quote_by_id, get_pending, get_all, mark_posted, reset_all,
     show_status,
@@ -73,6 +74,43 @@ MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
 
 
 # ─────────────────────────────────────────────
+# Subscriber goal: every Short ends with a friendly ask to subscribe
+# (its own closing slides), and the description repeats it.
+# The goal is live: the current subscriber count + 10, rounded up to
+# the next 10 (267 subscribers → "road to 280").
+# ─────────────────────────────────────────────
+SUBSCRIBE_ASK = {
+    "en": {"spoken": ["Help us reach {goal} subscribers!",
+                      "If you enjoyed this, tap subscribe. Your support keeps these videos coming. Thank you!"],
+           "description": "🔔 Help us reach {goal} subscribers! If you enjoyed this, please subscribe. "
+                          "Your support keeps these videos coming. Thank you! 🙏"},
+    # "Help us reach our goal of <goal> subscribers!" /
+    # "If you liked it, subscribe. Your support is our motivation. Thank you!"
+    # (goal in words, so the voice reads it naturally)
+    "ml": {"spoken": ["{goal_ml} സബ്സ്ക്രൈബേഴ്സ് എന്ന ലക്ഷ്യത്തിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ!",
+                      "ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി!"],
+           "description": "🔔 {goal} സബ്സ്ക്രൈബേഴ്സ് എന്ന ലക്ഷ്യത്തിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ! "
+                          "ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
+}
+# Used when the count can't be read: same ask, without a number
+SUBSCRIBE_ASK_NO_GOAL = {
+    "en": {"spoken": ["Enjoyed this? Tap subscribe!",
+                      "Your support keeps these videos coming. Thank you!"],
+           "description": "🔔 Enjoyed this? Please subscribe. Your support keeps these videos coming. Thank you! 🙏"},
+    "ml": {"spoken": ["ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ!",
+                      "നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി!"],
+           "description": "🔔 ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
+}
+
+def subscribe_ask(lang, key):
+    goal = subscriber_goal()
+    asks = SUBSCRIBE_ASK if goal else SUBSCRIBE_ASK_NO_GOAL
+    ask  = asks[LANG_CONFIG[lang]["yt_language"]][key]
+    fmt  = lambda t: t.format(goal=goal, goal_ml=ml_number(goal) if goal else "")
+    return [fmt(t) for t in ask] if isinstance(ask, list) else fmt(ask)
+
+
+# ─────────────────────────────────────────────
 # Per-language settings
 # ─────────────────────────────────────────────
 LANG_CONFIG = {
@@ -121,7 +159,7 @@ LANG_CONFIG = {
                           "ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും."],
         # "How many of these did you know? Comment. Follow for more facts."
         # (a question gets comments — comments push a Short to more viewers)
-        "ending":        "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റ് ചെയ്യൂ. കൂടുതൽ അറിവുകൾക്ക് ഫോളോ ചെയ്യൂ.",
+        "ending":        "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റ് ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -138,7 +176,7 @@ LANG_CONFIG = {
         "voices":        EDGE_VOICES,
         "hooks":         ["Did you know this?", "Most people don't know this.",
                           "This sounds fake, but it's true."],
-        "ending":        "Which one shocked you the most? Comment below, and follow for more.",
+        "ending":        "Which one shocked you the most? Comment below.",
         "caption_font":  BOLD_FONT,
         "author_font":   BOLD_FONT,
         "caption_chars": 16,
@@ -153,8 +191,8 @@ LANG_CONFIG = {
         "numbers":       {1: "Number one.", 2: "Number two.", 3: "Number three.",
                           4: "Number four.", 5: "Number five."},
         # Curiosity hooks / titles — picked per Short (stable for a given set of facts)
-        "fact_hooks":    ["{n} facts about {about} that sound fake, but they're true. Wait for number three.",
-                          "{n} things about {about} nobody ever told you. Number three is crazy.",
+        "fact_hooks":    ["{n} facts about {about} that sound fake, but they're true. Wait for number two.",
+                          "{n} things about {about} nobody ever told you. Number two is crazy.",
                           "You won't believe these {n} facts about {about}. Watch till the end."],
         "fact_titles":   ["{N} Facts About {About} That Sound Fake 🤯",
                           "{N} Things About {About} Nobody Told You 😳",
@@ -165,8 +203,8 @@ LANG_CONFIG = {
     "ml_space": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # the question itself is the hook
-        # "What do you think? Comment. Follow for more secrets of the universe."
-        "ending":        "നിങ്ങളുടെ അഭിപ്രായം എന്താണ്? കമന്റ് ചെയ്യൂ. പ്രപഞ്ചത്തിന്റെ കൂടുതൽ രഹസ്യങ്ങൾക്കായി ഫോളോ ചെയ്യൂ.",
+        # "What do you think? Comment."
+        "ending":        "നിങ്ങളുടെ അഭിപ്രായം എന്താണ്? കമന്റ് ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -185,10 +223,10 @@ LANG_CONFIG = {
     "ml_story": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # built from the story title + part number
-        # "The rest in the next part. Follow so you don't miss it."
-        "ending":        "ബാക്കി അടുത്ത ഭാഗത്തിൽ. കാണാതെ പോകാതിരിക്കാൻ ഫോളോ ചെയ്യൂ.",
-        # Final part: "If you liked the story, like it. Follow for new stories."
-        "final_ending":  "കഥ ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്യൂ. പുതിയ കഥകൾക്കായി ഫോളോ ചെയ്യൂ.",
+        # "The rest in the next part."
+        "ending":        "ബാക്കി അടുത്ത ഭാഗത്തിൽ.",
+        # Final part: "If you liked the story, like it."
+        "final_ending":  "കഥ ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -210,9 +248,10 @@ STORY_FALLBACK_KEYWORDS = ["night rain window", "misty forest", "dark clouds",
 # ─────────────────────────────────────────────
 # Facts: on-screen topic label + fallback footage
 # Each fact Short covers up to FACTS_PER_VIDEO facts on one topic
-# (~25-30s: a numbered list keeps people watching to the end).
+# (~20s: the channel's best Short was a 19s two-fact list — viewers
+# swipe away around 8s, so a shorter list keeps more of them to the end).
 # ─────────────────────────────────────────────
-FACTS_PER_VIDEO = 3
+FACTS_PER_VIDEO = 2
 ML_NUMBERS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്"}
 
 
@@ -1023,7 +1062,8 @@ def create_youtube_short(quote, lang="en"):
     ending = cfg["ending"]
     if cfg["kind"] == "story" and int(quote["part"]) >= int(quote["parts"]):
         ending = cfg["final_ending"]
-    segments = [hook] + body + [ending]
+    closing  = subscribe_ask(lang, "spoken")
+    segments = [hook] + body + [ending] + closing
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     tts_paths, durations, pause_ms = generate_audio_segments(segments, gender, lang)
@@ -1056,7 +1096,7 @@ def create_youtube_short(quote, lang="en"):
     author_clip = (
         ImageClip(overlay_png)
         .set_start(author_start)
-        .set_duration(seg_starts[-1] - author_start)
+        .set_duration(seg_starts[-1 - len(closing)] - author_start)
         .crossfadein(0.3)
     )
 
@@ -1192,6 +1232,7 @@ def upload_to_youtube(video_path, quote, sport, lang="en"):
     youtube = build("youtube", "v3", credentials=creds)
 
     title, description, tags = build_metadata(quote, sport, lang)
+    description = f"{subscribe_ask(lang, 'description')}\n\n{description}"
     print(f"🏷  Title: {title}")
     body = {
         "snippet": {
