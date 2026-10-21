@@ -73,6 +73,32 @@ MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
 
 
 # ─────────────────────────────────────────────
+# Subscriber goal: every Short ends with a friendly ask to subscribe
+# (its own closing slide), and the description repeats it.
+# Raise the goal once the channel passes it.
+# ─────────────────────────────────────────────
+SUBSCRIBER_GOAL = 300
+SUBSCRIBE_ASK = {
+    "en": {"spoken": ["If you enjoyed this, please subscribe.",
+                      "Help us reach {goal} subscribers. Thank you!"],
+           "description": "🔔 Enjoyed it? Please subscribe and help us reach {goal} subscribers! 🙏"},
+    # "If you liked it, please subscribe." / "We need your help to reach
+    # three hundred subscribers. Thank you!" (number in words for the voice)
+    "ml": {"spoken": ["ഇഷ്ടപ്പെട്ടെങ്കിൽ ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ.",
+                      "{goal_ml} സബ്സ്ക്രൈബേഴ്സ് ആകാൻ നിങ്ങളുടെ സഹായം വേണം. നന്ദി!"],
+           "description": "🔔 ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ! {goal} സബ്സ്ക്രൈബേഴ്സ് ആകാൻ ഞങ്ങളെ സഹായിക്കൂ 🙏"},
+}
+GOAL_ML_WORDS = {300: "മുന്നൂറ്", 400: "നാനൂറ്", 500: "അഞ്ഞൂറ്", 1000: "ആയിരം"}
+
+
+def subscribe_ask(lang, key):
+    ask = SUBSCRIBE_ASK[LANG_CONFIG[lang]["yt_language"]][key]
+    fmt = lambda t: t.format(goal=SUBSCRIBER_GOAL,
+                             goal_ml=GOAL_ML_WORDS.get(SUBSCRIBER_GOAL, str(SUBSCRIBER_GOAL)))
+    return [fmt(t) for t in ask] if isinstance(ask, list) else fmt(ask)
+
+
+# ─────────────────────────────────────────────
 # Per-language settings
 # ─────────────────────────────────────────────
 LANG_CONFIG = {
@@ -121,7 +147,7 @@ LANG_CONFIG = {
                           "ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും."],
         # "How many of these did you know? Comment. Follow for more facts."
         # (a question gets comments — comments push a Short to more viewers)
-        "ending":        "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റ് ചെയ്യൂ. കൂടുതൽ അറിവുകൾക്ക് ഫോളോ ചെയ്യൂ.",
+        "ending":        "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റ് ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -138,7 +164,7 @@ LANG_CONFIG = {
         "voices":        EDGE_VOICES,
         "hooks":         ["Did you know this?", "Most people don't know this.",
                           "This sounds fake, but it's true."],
-        "ending":        "Which one shocked you the most? Comment below, and follow for more.",
+        "ending":        "Which one shocked you the most? Comment below.",
         "caption_font":  BOLD_FONT,
         "author_font":   BOLD_FONT,
         "caption_chars": 16,
@@ -165,8 +191,8 @@ LANG_CONFIG = {
     "ml_space": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # the question itself is the hook
-        # "What do you think? Comment. Follow for more secrets of the universe."
-        "ending":        "നിങ്ങളുടെ അഭിപ്രായം എന്താണ്? കമന്റ് ചെയ്യൂ. പ്രപഞ്ചത്തിന്റെ കൂടുതൽ രഹസ്യങ്ങൾക്കായി ഫോളോ ചെയ്യൂ.",
+        # "What do you think? Comment."
+        "ending":        "നിങ്ങളുടെ അഭിപ്രായം എന്താണ്? കമന്റ് ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -185,10 +211,10 @@ LANG_CONFIG = {
     "ml_story": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # built from the story title + part number
-        # "The rest in the next part. Follow so you don't miss it."
-        "ending":        "ബാക്കി അടുത്ത ഭാഗത്തിൽ. കാണാതെ പോകാതിരിക്കാൻ ഫോളോ ചെയ്യൂ.",
-        # Final part: "If you liked the story, like it. Follow for new stories."
-        "final_ending":  "കഥ ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്യൂ. പുതിയ കഥകൾക്കായി ഫോളോ ചെയ്യൂ.",
+        # "The rest in the next part."
+        "ending":        "ബാക്കി അടുത്ത ഭാഗത്തിൽ.",
+        # Final part: "If you liked the story, like it."
+        "final_ending":  "കഥ ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്യൂ.",
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -1024,7 +1050,8 @@ def create_youtube_short(quote, lang="en"):
     ending = cfg["ending"]
     if cfg["kind"] == "story" and int(quote["part"]) >= int(quote["parts"]):
         ending = cfg["final_ending"]
-    segments = [hook] + body + [ending]
+    closing  = subscribe_ask(lang, "spoken")
+    segments = [hook] + body + [ending] + closing
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     tts_paths, durations, pause_ms = generate_audio_segments(segments, gender, lang)
@@ -1057,7 +1084,7 @@ def create_youtube_short(quote, lang="en"):
     author_clip = (
         ImageClip(overlay_png)
         .set_start(author_start)
-        .set_duration(seg_starts[-1] - author_start)
+        .set_duration(seg_starts[-1 - len(closing)] - author_start)
         .crossfadein(0.3)
     )
 
@@ -1193,6 +1220,7 @@ def upload_to_youtube(video_path, quote, sport, lang="en"):
     youtube = build("youtube", "v3", credentials=creds)
 
     title, description, tags = build_metadata(quote, sport, lang)
+    description = f"{subscribe_ask(lang, 'description')}\n\n{description}"
     print(f"🏷  Title: {title}")
     body = {
         "snippet": {
