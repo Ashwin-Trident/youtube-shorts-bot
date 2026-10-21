@@ -57,8 +57,8 @@ ensure_espeak()
 # Voice config
 # ─────────────────────────────────────────────
 EDGE_VOICES = {
-    "male":   ["en-US-GuyNeural", "en-GB-RyanNeural", "en-US-DavisNeural", "en-AU-WilliamNeural"],
-    "female": ["en-US-AriaNeural", "en-US-JennyNeural", "en-GB-SoniaNeural", "en-US-SaraNeural"],
+    "male":   ["en-US-GuyNeural", "en-GB-RyanNeural", "en-US-ChristopherNeural", "en-AU-WilliamNeural"],
+    "female": ["en-US-AriaNeural", "en-US-JennyNeural", "en-GB-SoniaNeural", "en-US-MichelleNeural"],
 }
 VOICE_COQUI = {
     "female": {"model": "tts_models/en/ljspeech/tacotron2-DDC", "speaker_idx": None},
@@ -975,14 +975,23 @@ def generate_audio_segments(segments, gender, lang="en"):
     voice       = _pick_voice(gender, lang)
     # The offline Coqui models are English-only
     coqui_cfg   = VOICE_COQUI[gender] if lang == "en" else None
-    paths, durs = [], []
-    for i, seg in enumerate(segments):
-        path = f"/tmp/tts_seg_{i:02d}.wav"
-        dur  = _synth_one(seg, path, voice, coqui_cfg)
-        paths.append(path)
-        durs.append(dur)
-        print(f"   🔊 Segment {i+1}: {dur:.2f}s  \"{seg[:50]}\"")
-    return paths, durs, PAUSE_MS
+    # If a voice stops working, redo the whole Short in another one
+    # (one voice per video) before giving up
+    others = [v for v in LANG_CONFIG[lang]["voices"][gender] if v != voice]
+    for voice in [voice] + random.sample(others, len(others)):
+        paths, durs = [], []
+        try:
+            for i, seg in enumerate(segments):
+                path = f"/tmp/tts_seg_{i:02d}.wav"
+                dur  = _synth_one(seg, path, voice, coqui_cfg)
+                paths.append(path)
+                durs.append(dur)
+                print(f"   🔊 Segment {i+1}: {dur:.2f}s  \"{seg[:50]}\"")
+            return paths, durs, PAUSE_MS
+        except RuntimeError as e:
+            last_error = e
+            print(f"   ⚠️  Voice {voice} failed; trying another voice")
+    raise last_error
 
 
 # ─────────────────────────────────────────────
