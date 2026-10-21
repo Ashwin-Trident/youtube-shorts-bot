@@ -1,0 +1,18 @@
+# Temporary: checks that the bot can read the live subscriber count.
+name: Check subscriber count
+on:
+  push:
+    branches: [claude/laughing-maxwell-giwoqc]
+    paths: [.github/workflows/check_subs.yml, subscribers.py]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests
+      - name: Read subscriber count
+        env:
+          CLIENT_ID:     ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: python subscribers.py

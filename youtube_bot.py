@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw, ImageFont
 from TTS.api import TTS
 from pydub import AudioSegment
 
+from subscribers import ml_number, subscriber_goal
 from quote_status import (
     LANGUAGES, get_next_quote, get_quote_by_id, get_pending, get_all, mark_posted, reset_all,
     show_status,
@@ -74,27 +75,38 @@ MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
 
 # ─────────────────────────────────────────────
 # Subscriber goal: every Short ends with a friendly ask to subscribe
-# (its own closing slide), and the description repeats it.
-# Raise the goal once the channel passes it.
+# (its own closing slides), and the description repeats it.
+# The goal is live: the current subscriber count + 10, rounded up to
+# the next 10 (267 subscribers → "road to 280").
 # ─────────────────────────────────────────────
-SUBSCRIBER_GOAL = 300
 SUBSCRIBE_ASK = {
-    "en": {"spoken": ["If you enjoyed this, please subscribe.",
-                      "Help us reach {goal} subscribers. Thank you!"],
-           "description": "🔔 Enjoyed it? Please subscribe and help us reach {goal} subscribers! 🙏"},
-    # "If you liked it, please subscribe." / "We need your help to reach
-    # three hundred subscribers. Thank you!" (number in words for the voice)
-    "ml": {"spoken": ["ഇഷ്ടപ്പെട്ടെങ്കിൽ ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ.",
-                      "{goal_ml} സബ്സ്ക്രൈബേഴ്സ് ആകാൻ നിങ്ങളുടെ സഹായം വേണം. നന്ദി!"],
-           "description": "🔔 ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ! {goal} സബ്സ്ക്രൈബേഴ്സ് ആകാൻ ഞങ്ങളെ സഹായിക്കൂ 🙏"},
+    "en": {"spoken": ["Please subscribe! We're on the road to {goal} subscribers.",
+                      "Your support gives us motivation for more videos. Thank you!"],
+           "description": "🔔 Road to {goal} subscribers! Please subscribe, your support "
+                          "gives us motivation for more videos. Thank you! 🙏"},
+    # "Please subscribe! We're on the road to <goal> subscribers." /
+    # "Your support is the motivation for more videos. Thank you!"
+    # (goal in words, so the voice reads it naturally)
+    "ml": {"spoken": ["ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ! നമ്മൾ {goal_ml} സബ്സ്ക്രൈബേഴ്സിലേക്കുള്ള യാത്രയിലാണ്.",
+                      "നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി!"],
+           "description": "🔔 {goal} സബ്സ്ക്രൈബേഴ്സിലേക്കുള്ള യാത്രയിലാണ് നമ്മൾ! ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ. "
+                          "നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി! 🙏"},
 }
-GOAL_ML_WORDS = {300: "മുന്നൂറ്", 400: "നാനൂറ്", 500: "അഞ്ഞൂറ്", 1000: "ആയിരം"}
-
+# Used when the count can't be read: same ask, without a number
+SUBSCRIBE_ASK_NO_GOAL = {
+    "en": {"spoken": ["Please subscribe!",
+                      "Your support gives us motivation for more videos. Thank you!"],
+           "description": "🔔 Please subscribe, your support gives us motivation for more videos. Thank you! 🙏"},
+    "ml": {"spoken": ["ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ!",
+                      "നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി!"],
+           "description": "🔔 ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി! 🙏"},
+}
 
 def subscribe_ask(lang, key):
-    ask = SUBSCRIBE_ASK[LANG_CONFIG[lang]["yt_language"]][key]
-    fmt = lambda t: t.format(goal=SUBSCRIBER_GOAL,
-                             goal_ml=GOAL_ML_WORDS.get(SUBSCRIBER_GOAL, str(SUBSCRIBER_GOAL)))
+    goal = subscriber_goal()
+    asks = SUBSCRIBE_ASK if goal else SUBSCRIBE_ASK_NO_GOAL
+    ask  = asks[LANG_CONFIG[lang]["yt_language"]][key]
+    fmt  = lambda t: t.format(goal=goal, goal_ml=ml_number(goal) if goal else "")
     return [fmt(t) for t in ask] if isinstance(ask, list) else fmt(ask)
 
 
