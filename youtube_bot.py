@@ -80,26 +80,26 @@ MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
 # the next 10 (267 subscribers → "road to 280").
 # ─────────────────────────────────────────────
 SUBSCRIBE_ASK = {
-    "en": {"spoken": ["Please subscribe! We're on the road to {goal} subscribers.",
-                      "Your support gives us motivation for more videos. Thank you!"],
-           "description": "🔔 Road to {goal} subscribers! Please subscribe, your support "
-                          "gives us motivation for more videos. Thank you! 🙏"},
-    # "Please subscribe! We're on the road to <goal> subscribers." /
-    # "Your support is the motivation for more videos. Thank you!"
+    "en": {"spoken": ["Help us reach {goal} subscribers!",
+                      "If you enjoyed this, tap subscribe. Your support keeps these videos coming. Thank you!"],
+           "description": "🔔 Help us reach {goal} subscribers! If you enjoyed this, please subscribe. "
+                          "Your support keeps these videos coming. Thank you! 🙏"},
+    # "Help us reach our goal of <goal> subscribers!" /
+    # "If you liked it, subscribe. Your support is our motivation. Thank you!"
     # (goal in words, so the voice reads it naturally)
-    "ml": {"spoken": ["ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ! നമ്മൾ {goal_ml} സബ്സ്ക്രൈബേഴ്സിലേക്കുള്ള യാത്രയിലാണ്.",
-                      "നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി!"],
-           "description": "🔔 {goal} സബ്സ്ക്രൈബേഴ്സിലേക്കുള്ള യാത്രയിലാണ് നമ്മൾ! ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ. "
-                          "നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി! 🙏"},
+    "ml": {"spoken": ["{goal_ml} സബ്സ്ക്രൈബേഴ്സ് എന്ന ലക്ഷ്യത്തിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ!",
+                      "ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി!"],
+           "description": "🔔 {goal} സബ്സ്ക്രൈബേഴ്സ് എന്ന ലക്ഷ്യത്തിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ! "
+                          "ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
 }
 # Used when the count can't be read: same ask, without a number
 SUBSCRIBE_ASK_NO_GOAL = {
-    "en": {"spoken": ["Please subscribe!",
-                      "Your support gives us motivation for more videos. Thank you!"],
-           "description": "🔔 Please subscribe, your support gives us motivation for more videos. Thank you! 🙏"},
-    "ml": {"spoken": ["ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ!",
-                      "നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി!"],
-           "description": "🔔 ദയവായി സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് കൂടുതൽ വീഡിയോകൾക്കുള്ള പ്രചോദനം. നന്ദി! 🙏"},
+    "en": {"spoken": ["Enjoyed this? Tap subscribe!",
+                      "Your support keeps these videos coming. Thank you!"],
+           "description": "🔔 Enjoyed this? Please subscribe. Your support keeps these videos coming. Thank you! 🙏"},
+    "ml": {"spoken": ["ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ!",
+                      "നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി!"],
+           "description": "🔔 ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
 }
 
 def subscribe_ask(lang, key):
