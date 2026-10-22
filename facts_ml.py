@@ -166,8 +166,8 @@ DEFAULT_QUOTES = [
         "text": "ചൊവ്വയിലെ ഒളിമ്പസ് മോൺസ് എന്ന അഗ്നിപർവ്വതത്തിന് എവറസ്റ്റിനേക്കാൾ ഏകദേശം രണ്ടര മടങ്ങ് ഉയരമുണ്ട്.",
         "topic": "space",
         "footage": "mars planet",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-22T16:29:20",
     },
     {
         "id": 19,
@@ -182,8 +182,8 @@ DEFAULT_QUOTES = [
         "text": "രണ്ടര ദശലക്ഷം പ്രകാശവർഷം അകലെയുള്ള ആൻഡ്രോമിഡ ഗാലക്സിയെ ഇരുണ്ട രാത്രിയിൽ നഗ്നനേത്രങ്ങൾ കൊണ്ട് കാണാം.",
         "topic": "space",
         "footage": "galaxy space",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-22T16:29:20",
     },
     {
         "id": 21,
