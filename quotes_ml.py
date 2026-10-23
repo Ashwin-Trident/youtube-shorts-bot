@@ -133,8 +133,8 @@ DEFAULT_QUOTES = [
         "text": "വിശ്രമം അവസാനം മതി, ഇടയ്ക്കു വേണ്ട.",
         "author": "Kobe Bryant",
         "author_ml": "കോബി ബ്രയന്റ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-23T02:46:08",
     },
     {
         "id": 15,
