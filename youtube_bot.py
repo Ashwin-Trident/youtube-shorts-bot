@@ -431,10 +431,15 @@ def is_paused(lang):
     return bool(until) and datetime.datetime.utcnow().date().isoformat() < until
 
 
+# Posts per cycle for each language — English facts get more views, so
+# 2 English for every 1 Malayalam
+LANGUAGE_SHARE = {"en": 2, "ml": 1}
+
+
 def pick_language():
     """
-    Language for this run: --lang / BOT_LANGUAGE override, otherwise alternate —
-    whichever language was posted least recently goes next.
+    Language for this run: --lang / BOT_LANGUAGE override, otherwise
+    rotate languages by LANGUAGE_SHARE.
     """
     forced = None
     if "--lang" in sys.argv:
@@ -452,14 +457,28 @@ def pick_language():
     for l in LANGUAGES:
         if is_paused(l):
             print(f"⏸  {LANGUAGES[l]['name']} paused until {PAUSED_UNTIL[l]}")
-    # One Malayalam, one English: the language whose latest post is older goes
-    # next, then the stream in that language that was posted least recently.
+    # LANGUAGE_SHARE posts in a row per language (2 English, then 1 Malayalam):
+    # stay on the latest language until its run is complete, then switch to the
+    # language whose latest post is older; then its least recently posted stream.
     groups = {}
     for l in available:
         groups.setdefault(LANG_CONFIG[l]["yt_language"], []).append(l)
-    group = min(groups, key=lambda g: max(last_posted_at(l) for l in groups[g]))
+    posts = [g for _, g in sorted({(e["posted_at"], LANG_CONFIG[l]["yt_language"])  # one per upload
+                                   for l in LANGUAGES for e in get_all(l) if e.get("posted_at")})]
+    latest = posts[-1] if posts else None
+    run    = 0                       # how many of the latest posts are in that language
+    for g in reversed(posts):
+        if g != latest:
+            break
+        run += 1
+    if latest in groups and (run < LANGUAGE_SHARE.get(latest, 1) or len(groups) == 1):
+        group = latest
+    else:
+        group = min((g for g in groups if g != latest) or groups,
+                    key=lambda g: max(last_posted_at(l) for l in groups[g]))
     lang  = min(groups[group], key=last_posted_at)
-    print(f"🌐 Language: {LANGUAGES[lang]['name']}  (alternating Malayalam / English)")
+    share = " : ".join(f"{n} {'English' if g == 'en' else 'Malayalam'}" for g, n in LANGUAGE_SHARE.items())
+    print(f"🌐 Language: {LANGUAGES[lang]['name']}  ({share})")
     return lang
 
 
