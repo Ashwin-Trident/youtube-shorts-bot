@@ -141,8 +141,8 @@ DEFAULT_QUOTES = [
         "text": "എനിക്ക് എന്തു ചെയ്യാനാകുമെന്ന് എനിക്കറിയാം, അതുകൊണ്ട് ഞാൻ ഒരിക്കലും എന്നെത്തന്നെ സംശയിക്കാറില്ല.",
         "author": "Usain Bolt",
         "author_ml": "ഉസൈൻ ബോൾട്ട്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-24T15:18:04",
     },
     {
         "id": 16,
