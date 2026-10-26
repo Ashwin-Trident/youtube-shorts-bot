@@ -431,9 +431,9 @@ def is_paused(lang):
     return bool(until) and datetime.datetime.utcnow().date().isoformat() < until
 
 
-# Posts per cycle for each language — English facts get more views, so
-# 2 English for every 1 Malayalam
-LANGUAGE_SHARE = {"en": 2, "ml": 1}
+# Posts in a row for each language. 1:1 for now: English led in Oct 17-21,
+# Malayalam led in Oct 24-26, so both get an equal share until more data.
+LANGUAGE_SHARE = {"en": 1, "ml": 1}
 
 
 def pick_language():
@@ -457,7 +457,7 @@ def pick_language():
     for l in LANGUAGES:
         if is_paused(l):
             print(f"⏸  {LANGUAGES[l]['name']} paused until {PAUSED_UNTIL[l]}")
-    # LANGUAGE_SHARE posts in a row per language (2 English, then 1 Malayalam):
+    # LANGUAGE_SHARE posts in a row per language (e.g. 1 English, 1 Malayalam):
     # stay on the latest language until its run is complete, then switch to the
     # language whose latest post is older; then its least recently posted stream.
     groups = {}
