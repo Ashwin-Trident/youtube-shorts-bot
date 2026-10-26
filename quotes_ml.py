@@ -157,8 +157,8 @@ DEFAULT_QUOTES = [
         "text": "സമ്മർദ്ദവും വെല്ലുവിളികളും, എല്ലാ പ്രതികൂല കാര്യങ്ങളും, എനിക്ക് ഉയരാനുള്ള അവസരങ്ങളാണ്.",
         "author": "Kobe Bryant",
         "author_ml": "കോബി ബ്രയന്റ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-26T23:38:55",
     },
     {
         "id": 18,
