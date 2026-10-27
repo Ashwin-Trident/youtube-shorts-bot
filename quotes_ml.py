@@ -165,8 +165,8 @@ DEFAULT_QUOTES = [
         "text": "ദിവസങ്ങൾ എണ്ണിയിരിക്കരുത്, ഓരോ ദിവസവും വിലപ്പെട്ടതാക്കുക.",
         "author": "Muhammad Ali",
         "author_ml": "മുഹമ്മദ് അലി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-27T23:28:25",
     },
     {
         "id": 19,
