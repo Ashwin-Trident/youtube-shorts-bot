@@ -173,8 +173,8 @@ DEFAULT_QUOTES = [
         "text": "വിജയം ഒരു യാദൃച്ഛികതയല്ല, അത് ഒരു തിരഞ്ഞെടുപ്പാണ്.",
         "author": "Stephen Curry",
         "author_ml": "സ്റ്റീഫൻ കറി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-28T23:49:39",
     },
     {
         "id": 20,
