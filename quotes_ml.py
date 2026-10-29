@@ -181,8 +181,8 @@ DEFAULT_QUOTES = [
         "text": "എനിക്ക് വിമർശനം ഇഷ്ടമാണ്. അത് നിങ്ങളെ കരുത്തരാക്കും.",
         "author": "LeBron James",
         "author_ml": "ലെബ്രോൺ ജെയിംസ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-29T23:49:20",
     },
     {
         "id": 21,
