@@ -204,6 +204,7 @@ LANG_CONFIG = {
         "voices":        EDGE_VOICES,
         "hooks":         [],     # every script has its own hook
         "ending":        "Which fact surprised you more? Comment below.",
+        "numbers":       {1: "Number one.", 2: "Number two."},
         "caption_font":  BOLD_FONT,
         "author_font":   BOLD_FONT,
         "caption_chars": 16,
@@ -553,7 +554,8 @@ def get_hook(author, lang="en"):
 # ─────────────────────────────────────────────
 def split_into_segments(quote_text, min_words=3, uppercase=True):
     import re
-    raw      = re.split(r'[.,!?]+', quote_text)
+    # Split at punctuation, but not inside numbers ("200,000", "2.5 million")
+    raw      = re.split(r'[.,!?]+(?!\d)|(?<!\d)[.,!?]+', quote_text)
     segments = [s.strip() for s in raw if s.strip()]
     merged, buf = [], ""
     for seg in segments:
@@ -1145,9 +1147,10 @@ def create_youtube_short(quote, lang="en"):
                 mid = len(body)          # right after the first fact
             body += [number] + split_into_segments(f["text"], uppercase=cfg["uppercase"])
     elif cfg["kind"] == "script":
-        progress = split_into_segments(quote_text, uppercase=cfg["uppercase"])
-        body     = progress + split_into_segments(quote["climax"], uppercase=cfg["uppercase"])
-        mid      = len(progress)         # between the progress lines and the climax
+        # Same shape as the fact lists: "Number one." fact 1, ask, "Number two." fact 2
+        body = [cfg["numbers"][1]] + split_into_segments(quote_text, uppercase=cfg["uppercase"])
+        mid  = len(body)                 # right after the first fact
+        body += [cfg["numbers"][2]] + split_into_segments(quote["fact2"], uppercase=cfg["uppercase"])
     else:
         body = split_into_segments(quote_text, uppercase=cfg["uppercase"])
         mid  = (len(body) + 1) // 2      # halfway through the quote / story part
@@ -1275,7 +1278,7 @@ def _story_metadata(part_entry, cfg, lang):
 
 
 def _script_metadata(script, cfg):
-    """Two-fact scripts: the hook as the title, the whole script in the description."""
+    """Two-fact scripts: the hook as the title, both facts in the description."""
     suffix = " #shorts #facts"
     text   = script["hook"].strip()
     if len(text) + len(suffix) > 100:
@@ -1285,7 +1288,7 @@ def _script_metadata(script, cfg):
                  "animals": " #animals #nature", "body": " #humanbody #health",
                  "mind": " #psychology #science", "food": " #food #health",
                  "history": " #history"}.get(script.get("topic"), "")
-    description = (f"{script['title']}\n\n{script['hook']} {script['text']} {script['climax']}\n\n"
+    description = (f"{script['title']}\n\n{script['hook']}\n\n1. {script['text']}\n\n2. {script['fact2']}\n\n"
                    f"{cfg['comment_ask']}\n\n{cfg['hashtags']}{topic_tag}")
     tags = cfg["tags"] + [script.get("topic", ""), script["title"]]
     return title, description, list(dict.fromkeys(t for t in tags if t))

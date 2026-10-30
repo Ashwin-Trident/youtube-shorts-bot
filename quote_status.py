@@ -13,7 +13,7 @@ One file per content stream:
   "ml_story" → stories_ml.py  (Malayalam mystery stories, posted part by part)
   "en_facts" → facts_en.py    (English curiosity facts)
   "ml_space" → space_ml.py    (Malayalam "big question" space explainers)
-  "en_scripts" → scripts_en.py (English two-fact scripts: hook, progress, climax)
+  "en_scripts" → scripts_en.py (English two-fact scripts: hook, fact 1, fact 2)
 
 How it works:
   - Reads DEFAULT_QUOTES from the language's file at runtime
@@ -116,7 +116,7 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
         lines.append('    "footage"   : English Pexels searches (fallback footage), separated by "|",\n')
     elif lang == "en_scripts":
         lines.append('Central store for the English two-fact scripts used by the YouTube Shorts bot.\n')
-        lines.append('Each entry is one Short, read aloud as hook, progress, climax.\n')
+        lines.append('Each entry is one Short: the hook, then "Number one." fact 1, "Number two." fact 2.\n')
         lines.append('Numbers and units are written the way they should be spoken.\n')
         lines.append('\n')
         lines.append('Each entry is a dict with these fields:\n')
@@ -124,8 +124,8 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
         lines.append('    "id"        : unique int  (never reuse / reorder),\n')
         lines.append('    "title"     : script title (shown on screen),\n')
         lines.append('    "hook"      : opening line (0-3 s; also the YouTube title),\n')
-        lines.append('    "text"      : progress lines, both facts with a little detail,\n')
-        lines.append('    "climax"    : the twist that ties them together,\n')
+        lines.append('    "text"      : fact 1, with a little detail,\n')
+        lines.append('    "fact2"     : fact 2, ending on the twist,\n')
         lines.append('    "topic"     : "space" | "earth" | "animals" | "body" | "mind" | "food" | "history",\n')
         lines.append('    "footage"   : English Pexels searches, separated by "|",\n')
     elif lang in ("ml_facts", "en_facts"):
