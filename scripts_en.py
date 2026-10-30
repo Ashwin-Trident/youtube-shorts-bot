@@ -37,8 +37,8 @@ DEFAULT_QUOTES = [
         "climax": "So even sea level isn't level. The oceans rise and dip by up to 100 metres around the world. The point farthest from Earth's centre isn't Everest. It's Chimborazo in Ecuador.",
         "topic": "space",
         "footage": "mars planet|earth from space|mountains",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-30T07:01:50",
     },
     {
         "id": 2,
