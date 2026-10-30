@@ -200,6 +200,23 @@ LANG_CONFIG = {
         "title_suffix":  " #shorts #facts",
         "comment_ask":   "Which fact surprised you the most? Tell us in the comments 👇",
     },
+    "en_scripts": {
+        "voices":        EDGE_VOICES,
+        "hooks":         [],     # every script has its own hook
+        "ending":        "Which fact surprised you more? Comment below.",
+        "caption_font":  BOLD_FONT,
+        "author_font":   BOLD_FONT,
+        "caption_chars": 16,
+        "line_spacing":  1.22,
+        "uppercase":     True,
+        "hashtags":      "#shorts #facts #didyouknow #funfacts #mindblowing #science",
+        "tags":          ["facts", "did you know", "fun facts", "interesting facts",
+                          "mind blowing facts", "things you didn't know", "shorts"],
+        "comment_ask":   "Which fact surprised you more? Tell us in the comments 👇",
+        "kind":          "script",
+        "yt_language":   "en",
+        "category":      "27",   # Education
+    },
     "ml_space": {
         "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
         "hooks":         [],     # the question itself is the hook
@@ -1087,6 +1104,15 @@ def create_youtube_short(quote, lang="en"):
         overlay  = dict(question=quote["question"])
         hook     = quote["question"]
         items    = [quote]
+    elif cfg["kind"] == "script":
+        topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
+        sport    = None
+        gender   = random.choice(["male", "female"])
+        keywords = quote["footage"].split("|") + random.sample(topic["keywords"], len(topic["keywords"]))
+        nasa_kws = topic.get("nasa", [])
+        overlay  = dict(author=quote["title"], prefix="")
+        hook     = quote["hook"]
+        items    = [quote]
     elif cfg["kind"] == "fact":
         items    = quote.get("items", [quote])
         topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
@@ -1118,6 +1144,10 @@ def create_youtube_short(quote, lang="en"):
             if i == 2:
                 mid = len(body)          # right after the first fact
             body += [number] + split_into_segments(f["text"], uppercase=cfg["uppercase"])
+    elif cfg["kind"] == "script":
+        progress = split_into_segments(quote_text, uppercase=cfg["uppercase"])
+        body     = progress + split_into_segments(quote["climax"], uppercase=cfg["uppercase"])
+        mid      = len(progress)         # between the progress lines and the climax
     else:
         body = split_into_segments(quote_text, uppercase=cfg["uppercase"])
         mid  = (len(body) + 1) // 2      # halfway through the quote / story part
@@ -1189,6 +1219,8 @@ def build_metadata(quote, sport, lang="en"):
         return _fact_metadata(quote, cfg, lang)
     if cfg["kind"] == "story":
         return _story_metadata(quote, cfg, lang)
+    if cfg["kind"] == "script":
+        return _script_metadata(quote, cfg)
     if cfg["kind"] == "explainer":
         title = f"{quote['question']} {cfg['title_tags']}"
         if len(title) > 100:
@@ -1240,6 +1272,23 @@ def _story_metadata(part_entry, cfg, lang):
     lines.append(cfg["hashtags"])
     tags = cfg["tags"] + [part_entry["title"], f"part {part}"]
     return title.replace("<", "").replace(">", ""), "\n".join(lines), tags
+
+
+def _script_metadata(script, cfg):
+    """Two-fact scripts: the hook as the title, the whole script in the description."""
+    suffix = " #shorts #facts"
+    text   = script["hook"].strip()
+    if len(text) + len(suffix) > 100:
+        text = text[:100 - len(suffix) - 1].rsplit(" ", 1)[0].rstrip(",.;:!?") + "…"
+    title  = f"{text}{suffix}".replace("<", "").replace(">", "")
+    topic_tag = {"space": " #space #universe", "earth": " #earth #nature",
+                 "animals": " #animals #nature", "body": " #humanbody #health",
+                 "mind": " #psychology #science", "food": " #food #health",
+                 "history": " #history"}.get(script.get("topic"), "")
+    description = (f"{script['title']}\n\n{script['hook']} {script['text']} {script['climax']}\n\n"
+                   f"{cfg['comment_ask']}\n\n{cfg['hashtags']}{topic_tag}")
+    tags = cfg["tags"] + [script.get("topic", ""), script["title"]]
+    return title, description, list(dict.fromkeys(t for t in tags if t))
 
 
 def _fact_metadata(fact, cfg, lang):
@@ -1365,7 +1414,7 @@ def _git_commit_status(quote_id, lang: str = "en") -> bool:
 
     label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact",
               "en_facts": "English fact", "ml_space": "Malayalam space question",
-              "ml_story": "Malayalam story part"}.get(lang, lang)
+              "ml_story": "Malayalam story part", "en_scripts": "English script"}.get(lang, lang)
     if isinstance(quote_id, (list, tuple)):
         label, quote_id = label + "s", ",".join(str(i) for i in quote_id)
     msg    = f"chore: mark {label} id={quote_id} as posted [skip ci]"
