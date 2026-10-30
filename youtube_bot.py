@@ -74,32 +74,28 @@ MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
 
 
 # ─────────────────────────────────────────────
-# Subscriber goal: every Short ends with a friendly ask to subscribe
-# (its own closing slides), and the description repeats it.
+# Subscriber goal: a short "like and subscribe" ask in the middle of every
+# Short (after the first fact), and the description repeats it.
 # The goal is live: the current subscriber count + 10, rounded up to
 # the next 10 (267 subscribers → "road to 280").
 # ─────────────────────────────────────────────
 SUBSCRIBE_ASK = {
-    "en": {"spoken": ["Help us reach {goal} subscribers!",
-                      "If you enjoyed this, tap subscribe. Your support keeps these videos coming. Thank you!"],
-           "description": "🔔 Help us reach {goal} subscribers! If you enjoyed this, please subscribe. "
+    "en": {"spoken": ["Help us reach {goal} subscribers. Tap like and subscribe!"],
+           "description": "🔔 Help us reach {goal} subscribers! If you enjoyed this, please like and subscribe. "
                           "Your support keeps these videos coming. Thank you! 🙏"},
-    # "Help us reach our goal of <goal> subscribers!" /
-    # "If you liked it, subscribe. Your support is our motivation. Thank you!"
+    # "Help us reach <goal> subscribers. Like and subscribe!"
     # (goal in words, so the voice reads it naturally)
-    "ml": {"spoken": ["{goal_ml} സബ്സ്ക്രൈബേഴ്സ് എന്ന ലക്ഷ്യത്തിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ!",
-                      "ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി!"],
+    "ml": {"spoken": ["{goal_ml} സബ്സ്ക്രൈബേഴ്സിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ. ലൈക്ക് ചെയ്ത് സബ്സ്ക്രൈബ് ചെയ്യൂ!"],
            "description": "🔔 {goal} സബ്സ്ക്രൈബേഴ്സ് എന്ന ലക്ഷ്യത്തിലേക്ക് ഞങ്ങളെ സഹായിക്കൂ! "
-                          "ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
+                          "ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്ത് സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
 }
 # Used when the count can't be read: same ask, without a number
 SUBSCRIBE_ASK_NO_GOAL = {
-    "en": {"spoken": ["Enjoyed this? Tap subscribe!",
-                      "Your support keeps these videos coming. Thank you!"],
-           "description": "🔔 Enjoyed this? Please subscribe. Your support keeps these videos coming. Thank you! 🙏"},
-    "ml": {"spoken": ["ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ!",
-                      "നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി!"],
-           "description": "🔔 ഇഷ്ടപ്പെട്ടെങ്കിൽ സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
+    "en": {"spoken": ["Enjoying this? Tap like and subscribe!"],
+           "description": "🔔 Enjoyed this? Please like and subscribe. Your support keeps these videos coming. Thank you! 🙏"},
+    # "Like it? Like and subscribe!"
+    "ml": {"spoken": ["ഇഷ്ടപ്പെട്ടോ? ലൈക്ക് ചെയ്ത് സബ്സ്ക്രൈബ് ചെയ്യൂ!"],
+           "description": "🔔 ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്ത് സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
 }
 
 def subscribe_ask(lang, key):
@@ -160,6 +156,12 @@ LANG_CONFIG = {
         # "How many of these did you know? Comment. Follow for more facts."
         # (a question gets comments — comments push a Short to more viewers)
         "ending":        "ഇതിൽ എത്രയെണ്ണം നിങ്ങൾക്ക് അറിയാമായിരുന്നു? കമന്റ് ചെയ്യൂ.",
+        # Open on a specific curiosity gap ("<about X> ..."):
+        # "...there are some things you don't know!" / "...do you know this?" /
+        # "...this will shock you!"
+        "fact_hooks":    ["{about} നിങ്ങൾ അറിയാത്ത ചില കാര്യങ്ങളുണ്ട്!",
+                          "{about} ഇത് നിങ്ങൾക്ക് അറിയാമോ?",
+                          "{about} ഇത് കേട്ടാൽ നിങ്ങൾ ഞെട്ടും!"],
         "caption_font":  MALAYALAM_FONT,
         "author_font":   MALAYALAM_FONT,
         "caption_chars": 24,
@@ -191,12 +193,10 @@ LANG_CONFIG = {
         "numbers":       {1: "Number one.", 2: "Number two.", 3: "Number three.",
                           4: "Number four.", 5: "Number five."},
         # Curiosity hooks / titles — picked per Short (stable for a given set of facts)
-        "fact_hooks":    ["{n} facts about {about} that sound fake, but they're true. Wait for number two.",
-                          "{n} things about {about} nobody ever told you. Number two is crazy.",
-                          "You won't believe these {n} facts about {about}. Watch till the end."],
-        "fact_titles":   ["{N} Facts About {About} That Sound Fake 🤯",
-                          "{N} Things About {About} Nobody Told You 😳",
-                          "You Won't Believe These {N} Facts About {About} 🤯"],
+        # Open on a specific curiosity gap, not a list announcement
+        "fact_hooks":    ["There's something about {about} you probably don't know.",
+                          "Bet you didn't know this about {about}.",
+                          "Wait till you hear this about {about}."],
         "title_suffix":  " #shorts #facts",
         "comment_ask":   "Which fact surprised you the most? Tell us in the comments 👇",
     },
@@ -255,17 +255,45 @@ FACTS_PER_VIDEO = 2
 ML_NUMBERS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്"}
 
 
+# How often each fact topic comes up. Food and Kerala do best on the channel,
+# so roughly 50% food, 30% Kerala, 20% everything else (English has no
+# Kerala facts, so food takes a bigger share there).
+TOPIC_WEIGHT = {"food": 5, "kerala": 3, "mind": 0.8, "animals": 0.8, "body": 0.6,
+                "history": 0.5, "earth": 0.2, "space": 0.2, "aliens": 0.1}
+TOPIC_WINDOW = 20   # recent Shorts the weights are balanced over
+
+
+def posted_uploads(lang):
+    """(posted_at, topic) of each posted fact Short, oldest first (one per upload)."""
+    return sorted({(f["posted_at"], f["topic"]) for f in get_all(lang)
+                   if f.get("status") == "posted" and f.get("posted_at")})
+
+
 def next_fact(lang):
-    """First pending fact of the topic that was posted least recently —
-    rotates space / aliens / animals / body / earth instead of file order."""
+    """First pending fact of the topic furthest behind its TOPIC_WEIGHT share
+    over the last TOPIC_WINDOW Shorts (ties: the topic posted least recently).
+    Never the same topic twice in a row while another one is available."""
     pending = get_pending(lang)
-    last = {}
-    for f in get_all(lang):
-        if f.get("status") == "posted":
-            last[f["topic"]] = max(last.get(f["topic"], ""), f.get("posted_at") or "")
-    topics = list(dict.fromkeys(f["topic"] for f in pending))
-    topic  = min(topics, key=lambda t: last.get(t, ""))
+    uploads = posted_uploads(lang)
+    recent  = [t for _, t in uploads[-TOPIC_WINDOW:]]
+    last    = {t: at for at, t in uploads}
+    topics  = list(dict.fromkeys(f["topic"] for f in pending))
+    if len(topics) > 1 and recent:
+        topics = [t for t in topics if t != recent[-1]] or topics
+    topic   = min(topics, key=lambda t: ((recent.count(t) + 1) / TOPIC_WEIGHT.get(t, 0.1),
+                                         last.get(t, "")))
     return next(f for f in pending if f["topic"] == topic)
+
+
+# English series names ("Food Facts You Never Knew | Part 7")
+SERIES_EN = {"space": "Space Facts", "aliens": "Alien Life Facts", "animals": "Animal Facts",
+             "body": "Body Facts", "earth": "Earth Facts", "mind": "Brain Facts",
+             "food": "Food Facts", "history": "History Facts", "kerala": "Kerala Facts"}
+
+
+def fact_series_part(topic_key, lang):
+    """Part number of this Short in its topic series ("Food Facts | Part 7")."""
+    return 1 + sum(t == topic_key for _, t in posted_uploads(lang))
 
 
 def fact_items(fact, lang):
@@ -1067,7 +1095,10 @@ def create_youtube_short(quote, lang="en"):
         own      = [f["footage"] for f in items]
         keywords = own + random.sample(topic["keywords"], len(topic["keywords"]))
         nasa_kws = own + topic.get("nasa", []) if topic.get("nasa") else []
-        overlay  = dict(author=topic_text(topic, "label", lang), prefix="")
+        part_no  = fact_series_part(quote.get("topic"), lang)
+        label    = topic_text(topic, "label", lang)
+        overlay  = dict(author=f"{label} | " + (f"PART {part_no}" if LANG_CONFIG[lang]["yt_language"] == "en"
+                                                 else f"ഭാഗം {part_no}"), prefix="")
         hook     = (fact_list_hook(topic, len(items), lang, seed=items[0]["id"])
                     if len(items) > 1 else get_hook(None, lang))
     else:
@@ -1081,17 +1112,22 @@ def create_youtube_short(quote, lang="en"):
         overlay  = dict(author=shown_name)
         hook     = get_hook(shown_name, lang)
     if cfg["kind"] == "fact" and len(items) > 1:
-        body = []
+        body, mid = [], 0
         for i, f in enumerate(items, 1):
             number = cfg["numbers"][i] if cfg.get("numbers") else f"{ML_NUMBERS[i]}."
+            if i == 2:
+                mid = len(body)          # right after the first fact
             body += [number] + split_into_segments(f["text"], uppercase=cfg["uppercase"])
     else:
         body = split_into_segments(quote_text, uppercase=cfg["uppercase"])
+        mid  = (len(body) + 1) // 2      # halfway through the quote / story part
     ending = cfg["ending"]
     if cfg["kind"] == "story" and int(quote["part"]) >= int(quote["parts"]):
         ending = cfg["final_ending"]
-    closing  = subscribe_ask(lang, "spoken")
-    segments = [hook] + body + [ending] + closing
+    # Like + subscribe ask in the middle, while viewers are still watching
+    ask      = subscribe_ask(lang, "spoken")
+    body     = body[:mid] + ask + body[mid:]
+    segments = [hook] + body + [ending]
     print(f"📝 {len(segments)} segment(s) detected (incl. hook + loop ending)")
 
     tts_paths, durations, pause_ms = generate_audio_segments(segments, gender, lang)
@@ -1124,7 +1160,7 @@ def create_youtube_short(quote, lang="en"):
     author_clip = (
         ImageClip(overlay_png)
         .set_start(author_start)
-        .set_duration(seg_starts[-1 - len(closing)] - author_start)
+        .set_duration(seg_starts[-1] - author_start)
         .crossfadein(0.3)
     )
 
@@ -1150,7 +1186,7 @@ def build_metadata(quote, sport, lang="en"):
     cfg        = LANG_CONFIG[lang]
     quote_text = quote["text"]
     if cfg["kind"] == "fact":
-        return _fact_metadata(quote, cfg)
+        return _fact_metadata(quote, cfg, lang)
     if cfg["kind"] == "story":
         return _story_metadata(quote, cfg, lang)
     if cfg["kind"] == "explainer":
@@ -1206,22 +1242,29 @@ def _story_metadata(part_entry, cfg, lang):
     return title.replace("<", "").replace(">", ""), "\n".join(lines), tags
 
 
-def _fact_metadata(fact, cfg):
-    """Fact Shorts: the fact (or "N things about <topic>") as the title, all facts in the description."""
+def _fact_metadata(fact, cfg, lang):
+    """Fact Shorts: the topic series + part ("Food Facts You Never Knew | Part 7")
+    as the title, all facts in the description."""
     items  = fact.get("items", [fact])
     suffix = cfg.get("title_suffix", " #shorts #malayalam #facts")
-    budget = 100 - len(suffix)
     topic  = FACT_TOPICS.get(fact.get("topic"), FACT_TOPICS["earth"])
-    if len(items) > 1 and cfg.get("fact_titles"):
-        about = topic.get("about_en", topic["about"])
-        tpl   = cfg["fact_titles"][items[0]["id"] % len(cfg["fact_titles"])]
-        text  = tpl.format(N=len(items), About=" ".join(w.capitalize() for w in about.split()))
+    part   = fact_series_part(fact.get("topic"), lang)
+    if len(items) > 1 and cfg["yt_language"] == "en":
+        series = SERIES_EN.get(fact.get("topic"), "Facts")
+        text   = f"{series} You Never Knew 🤯 | Part {part}"
     elif len(items) > 1:
-        text  = f"{topic['about']} അധികമാർക്കും അറിയാത്ത {len(items)} കാര്യങ്ങൾ"
+        # "<about X> things most people don't know | Part N"
+        text   = f"{topic['about']} അധികമാർക്കും അറിയാത്ത കാര്യങ്ങൾ | ഭാഗം {part}"
     else:
         text  = fact["text"].strip()
-    if len(text) > budget:
-        text = text[:budget - 1].rsplit(" ", 1)[0].rstrip(",.;:!?") + "…"
+    # Drop hashtags before cutting the series name ("… | Part N" must survive)
+    for tags in (suffix, " #shorts #malayalam" if cfg["yt_language"] == "ml" else " #shorts", " #shorts"):
+        if len(text) + len(tags) <= 100:
+            suffix = tags
+            break
+    else:
+        suffix = " #shorts"
+        text   = text[:100 - len(suffix) - 1].rsplit(" ", 1)[0].rstrip(",.;:!?") + "…"
     title  = f"{text}{suffix}".replace("<", "").replace(">", "")
     topic_tag = {"space": " #space #galaxy #universe", "aliens": " #aliens #space #universe",
                  "animals": " #animals #nature", "body": " #humanbody",
