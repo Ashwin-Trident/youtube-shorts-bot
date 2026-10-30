@@ -189,8 +189,8 @@ DEFAULT_QUOTES = [
         "text": "കഠിനാധ്വാനമില്ലാത്ത കഴിവ് ഒന്നുമല്ല.",
         "author": "Cristiano Ronaldo",
         "author_ml": "ക്രിസ്റ്റ്യാനോ റൊണാൾഡോ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-30T23:28:27",
     },
     {
         "id": 22,
