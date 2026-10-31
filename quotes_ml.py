@@ -197,8 +197,8 @@ DEFAULT_QUOTES = [
         "text": "നിങ്ങൾ കളിക്കുന്നത് കാണികൾക്കു വേണ്ടിയല്ല, രാജ്യത്തിനു വേണ്ടിയാണ്.",
         "author": "MS Dhoni",
         "author_ml": "എം എസ് ധോണി",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-31T23:01:24",
     },
     {
         "id": 23,
