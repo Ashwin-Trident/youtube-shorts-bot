@@ -48,8 +48,8 @@ DEFAULT_QUOTES = [
         "fact2": "Every star you see is old light, too. Stars you can see with your bare eyes can be up to about 4,000 light years away. That light left when the pyramids were being built. On a dark night you can spot the Andromeda Galaxy. Its light left 2.5 million years ago, before humans even existed.",
         "topic": "space",
         "footage": "galaxy space|coffee|milky way night sky",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-10-31T03:38:38",
     },
     {
         "id": 3,
