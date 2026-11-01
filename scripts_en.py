@@ -59,8 +59,8 @@ DEFAULT_QUOTES = [
         "fact2": "Our Solar System even has an edge, the heliopause, where the Sun's wind stops pushing back against the wind from other stars. Only two human objects have crossed it. Voyager 1 in 2012 and Voyager 2 in 2018. They're more than 18 billion kilometres away and still sending us data.",
         "topic": "space",
         "footage": "earth from space|stars universe|outer space",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-01T03:36:55",
     },
     {
         "id": 4,
