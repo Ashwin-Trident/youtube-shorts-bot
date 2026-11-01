@@ -1326,8 +1326,8 @@ DEFAULT_QUOTES = [
         "text": "തെങ്ങ് കേരളത്തിന്റെ കല്പവൃക്ഷമാണ്. തേങ്ങ മുതൽ ഓല വരെ അതിന്റെ എല്ലാ ഭാഗവും മനുഷ്യൻ ഉപയോഗിക്കുന്നു.",
         "topic": "food",
         "footage": "coconut",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-01T11:01:59",
     },
     {
         "id": 164,
@@ -1414,8 +1414,8 @@ DEFAULT_QUOTES = [
         "text": "ഏകദേശം ഇരുനൂറ് വർഷം മുമ്പ് കെച്ചപ്പ് ഒരു മരുന്നായാണ് വിറ്റിരുന്നത്.",
         "topic": "food",
         "footage": "ketchup",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-01T11:01:59",
     },
     {
         "id": 175,
