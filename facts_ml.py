@@ -1134,8 +1134,8 @@ DEFAULT_QUOTES = [
         "text": "ഇന്ത്യയിൽ പുരുഷന്മാരേക്കാൾ കൂടുതൽ സ്ത്രീകളുള്ള സംസ്ഥാനമാണ് കേരളം.",
         "topic": "kerala",
         "footage": "kerala people",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-02T11:58:26",
     },
     {
         "id": 140,
@@ -1494,8 +1494,8 @@ DEFAULT_QUOTES = [
         "text": "ഇന്ത്യയിൽ ആദ്യം മൺസൂൺ എത്തുന്നത് നമ്മുടെ കേരളത്തിലാണ്.",
         "topic": "kerala",
         "footage": "rain",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-02T11:58:26",
     },
     {
         "id": 185,
