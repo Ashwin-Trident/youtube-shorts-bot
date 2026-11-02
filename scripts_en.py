@@ -70,8 +70,8 @@ DEFAULT_QUOTES = [
         "fact2": "On Saturn's moon Titan, there are rivers, lakes and rain, but the liquid is methane, not water. At minus 180 degrees, the gas we cook with on Earth falls from Titan's sky as rain. NASA is sending a drone called Dragonfly to fly through it.",
         "topic": "space",
         "footage": "comet|saturn planet|outer space",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-02T03:47:21",
     },
     {
         "id": 5,
