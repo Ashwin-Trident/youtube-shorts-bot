@@ -81,8 +81,8 @@ DEFAULT_QUOTES = [
         "fact2": "The Moon is changing too. As its core cools, it has shrunk by about 50 metres. Its surface wrinkles like a raisin, causing moonquakes that can last for hours.",
         "topic": "space",
         "footage": "compass|moon surface|aurora",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-03T15:50:17",
     },
     {
         "id": 6,
