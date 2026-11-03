@@ -213,8 +213,8 @@ DEFAULT_QUOTES = [
         "text": "നിൽക്കുന്നിടത്തുനിന്ന് തുടങ്ങുക. കയ്യിലുള്ളത് ഉപയോഗിക്കുക. കഴിയുന്നത് ചെയ്യുക.",
         "author": "Arthur Ashe",
         "author_ml": "ആർതർ ആഷ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-03T04:46:27",
     },
     {
         "id": 25,
