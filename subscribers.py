@@ -14,9 +14,16 @@ import requests
 
 CHANNEL_ID = os.environ.get("CHANNEL_ID", "UCAwi0YRrGlTn7E46RaAdtmw")
 
-_ML_TENS = {1: "പത്ത്", 2: "ഇരുപത്", 3: "മുപ്പത്", 4: "നാൽപ്പത്", 5: "അമ്പത്",
-            6: "അറുപത്", 7: "എഴുപത്", 8: "എൺപത്", 9: "തൊണ്ണൂറ്"}
-# (standalone, before more digits) — "ഇരുനൂറ്" / "ഇരുനൂറ്റി എൺപത്"
+_ML_UNITS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്",
+             6: "ആറ്", 7: "ഏഴ്", 8: "എട്ട്", 9: "ഒമ്പത്"}
+_ML_TEENS = {10: "പത്ത്", 11: "പതിനൊന്ന്", 12: "പന്ത്രണ്ട്", 13: "പതിമൂന്ന്", 14: "പതിനാല്",
+             15: "പതിനഞ്ച്", 16: "പതിനാറ്", 17: "പതിനേഴ്", 18: "പതിനെട്ട്", 19: "പത്തൊമ്പത്"}
+# (standalone, before a unit) — "ഇരുപത്" / "ഇരുപത്തി" + "യഞ്ച്" = "ഇരുപത്തിയഞ്ച്"
+_ML_TENS = {2: ("ഇരുപത്", "ഇരുപത്തി"), 3: ("മുപ്പത്", "മുപ്പത്തി"), 4: ("നാൽപ്പത്", "നാൽപ്പത്തി"),
+            5: ("അമ്പത്", "അമ്പത്തി"), 6: ("അറുപത്", "അറുപത്തി"), 7: ("എഴുപത്", "എഴുപത്തി"),
+            8: ("എൺപത്", "എൺപത്തി"), 9: ("തൊണ്ണൂറ്", "തൊണ്ണൂറ്റി")}
+# A unit that starts with a vowel joins with a "y" glide: അഞ്ച് → യഞ്ച്, ഏഴ് → യേഴ്
+_ML_GLIDE = {"അ": "യ", "ആ": "യാ", "എ": "യെ", "ഏ": "യേ", "ഒ": "യൊ"}
 _ML_HUNDREDS = {1: ("നൂറ്", "നൂറ്റി"), 2: ("ഇരുനൂറ്", "ഇരുനൂറ്റി"), 3: ("മുന്നൂറ്", "മുന്നൂറ്റി"),
                 4: ("നാനൂറ്", "നാനൂറ്റി"), 5: ("അഞ്ഞൂറ്", "അഞ്ഞൂറ്റി"), 6: ("അറുനൂറ്", "അറുനൂറ്റി"),
                 7: ("എഴുനൂറ്", "എഴുനൂറ്റി"), 8: ("എണ്ണൂറ്", "എണ്ണൂറ്റി"),
@@ -25,20 +32,31 @@ _ML_THOUSANDS = {1: "ആയിരം", 2: "രണ്ടായിരം", 3: "മ
                  6: "ആറായിരം", 7: "ഏഴായിരം", 8: "എണ്ണായിരം", 9: "ഒമ്പതിനായിരം"}
 
 
+def _ml_below_100(n):
+    if n < 10:
+        return _ML_UNITS[n]
+    if n < 20:
+        return _ML_TEENS[n]
+    t, u = divmod(n, 10)
+    if not u:
+        return _ML_TENS[t][0]
+    unit = _ML_UNITS[u]
+    return _ML_TENS[t][1] + (_ML_GLIDE[unit[0]] + unit[1:] if unit[0] in _ML_GLIDE else unit)
+
+
 def ml_number(n):
-    """Malayalam words for a multiple of ten below 10,000 (e.g. 280 → "ഇരുനൂറ്റി എൺപത്");
-    digits for anything else."""
-    if n % 10 or not 0 < n < 10000:
+    """Malayalam words for 1-9,999 (e.g. 325 → "മുന്നൂറ്റി ഇരുപത്തിയഞ്ച്"); digits otherwise."""
+    if not 0 < n < 10000:
         return str(n)
-    th, h, t = n // 1000, n // 100 % 10, n // 10 % 10
+    th, h, rest = n // 1000, n // 100 % 10, n % 100
     words = []
     if th:
         w = _ML_THOUSANDS[th]
-        words.append(w[:-1] + "ത്തി" if (h or t) else w)   # ആയിരം → ആയിരത്തി
+        words.append(w[:-1] + "ത്തി" if (h or rest) else w)   # ആയിരം → ആയിരത്തി
     if h:
-        words.append(_ML_HUNDREDS[h][1 if t else 0])
-    if t:
-        words.append(_ML_TENS[t])
+        words.append(_ML_HUNDREDS[h][1 if rest else 0])
+    if rest:
+        words.append(_ml_below_100(rest))
     return " ".join(words)
 
 
@@ -93,10 +111,14 @@ def get_subscriber_count():
 
 
 def subscriber_goal():
-    """Current subscribers + 10, rounded up to the next 10 (267 → 280)."""
+    """(goal, still needed): current subscribers + 5, rounded up to the next 5
+    (313 → 320, 7 more), or (None, None) if the count can't be read."""
     count = get_subscriber_count()
-    return None if count is None else -(-(count + 10) // 10) * 10
+    if count is None:
+        return None, None
+    goal = -(-(count + 5) // 5) * 5
+    return goal, goal - count
 
 
 if __name__ == "__main__":
-    print("Goal:", subscriber_goal())
+    print("Goal, still needed:", subscriber_goal())
