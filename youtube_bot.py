@@ -77,18 +77,18 @@ MALAYALAM_FONT = "/usr/share/fonts/truetype/noto/NotoSansMalayalam-Bold.ttf"
 # Subscriber goal: a short "like and subscribe" ask in the middle of every
 # Short (after the first fact), and the description repeats it.
 # The goal is live: the current subscriber count + 5, rounded up to the
-# next 5, and the ask says how many are still needed (313 → "only 7 more
-# to reach 320").
+# next 5, and the ask says how many are still needed (313 → "just 7 more
+# subscribers to reach 320").
 # ─────────────────────────────────────────────
 SUBSCRIBE_ASK = {
-    "en": {"spoken": ["Only {left} more to reach {goal} subscribers. Tap like and subscribe!"],
-           "description": "🔔 Only {left} more to reach {goal} subscribers! If you enjoyed this, please like and subscribe. "
+    "en": {"spoken": ["Just {left} more subscribers to reach {goal}! Please subscribe and like."],
+           "description": "🔔 Just {left} more subscribers to reach {goal}! Please subscribe and like. "
                           "Your support keeps these videos coming. Thank you! 🙏"},
-    # "Only <left> more people to reach <goal> subscribers. Like and subscribe!"
+    # "Just <left> more subscribers needed to reach <goal>! Please subscribe and like."
     # (numbers in words, so the voice reads them naturally)
-    "ml": {"spoken": ["{goal_ml} സബ്സ്ക്രൈബേഴ്സ് ആകാൻ ഇനി {left_ml} പേർ കൂടി മതി. ലൈക്ക് ചെയ്ത് സബ്സ്ക്രൈബ് ചെയ്യൂ!"],
-           "description": "🔔 {goal} സബ്സ്ക്രൈബേഴ്സ് ആകാൻ ഇനി {left} പേർ കൂടി മതി! "
-                          "ഇഷ്ടപ്പെട്ടെങ്കിൽ ലൈക്ക് ചെയ്ത് സബ്സ്ക്രൈബ് ചെയ്യൂ. നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
+    "ml": {"spoken": ["{goal_ml} ആകാൻ ഇനി {left_ml} സബ്സ്ക്രൈബേഴ്സ് കൂടി മതി! ദയവായി സബ്സ്ക്രൈബ് ചെയ്ത് ലൈക്ക് ചെയ്യൂ."],
+           "description": "🔔 {goal} ആകാൻ ഇനി {left} സബ്സ്ക്രൈബേഴ്സ് കൂടി മതി! ദയവായി സബ്സ്ക്രൈബ് ചെയ്ത് ലൈക്ക് ചെയ്യൂ. "
+                          "നിങ്ങളുടെ പിന്തുണയാണ് ഞങ്ങളുടെ പ്രചോദനം. നന്ദി! 🙏"},
 }
 # Used when the count can't be read: same ask, without a number
 SUBSCRIBE_ASK_NO_GOAL = {
