@@ -92,8 +92,8 @@ DEFAULT_QUOTES = [
         "fact2": "On the Moon itself sits a family photo, left by Apollo 16 astronaut Charlie Duke in 1972. With no wind or rain, the bootprints beside it could last millions of years. A family snapshot became one of the most remote objects humans have ever left behind.",
         "topic": "space",
         "footage": "full moon|moon surface|night sky",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-04T21:45:52",
     },
     {
         "id": 7,
