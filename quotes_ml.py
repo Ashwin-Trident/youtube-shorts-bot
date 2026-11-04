@@ -221,8 +221,8 @@ DEFAULT_QUOTES = [
         "text": "ഒരു മനുഷ്യനും പരിമിതികളില്ല.",
         "author": "Eliud Kipchoge",
         "author_ml": "എലിയുഡ് കിപ്ചോഗെ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-04T16:41:33",
     },
     {
         "id": 26,
