@@ -229,8 +229,8 @@ DEFAULT_QUOTES = [
         "text": "മെച്ചപ്പെടണമെങ്കിൽ, പരാജയം അംഗീകരിക്കാൻ നിങ്ങൾക്ക് കഴിയണം.",
         "author": "LeBron James",
         "author_ml": "ലെബ്രോൺ ജെയിംസ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-05T21:50:16",
     },
     {
         "id": 27,
