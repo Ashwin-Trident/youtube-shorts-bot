@@ -103,8 +103,8 @@ DEFAULT_QUOTES = [
         "fact2": "Venus has its own rainbows. Glowing rings called glories, made when sunlight bounces off tiny cloud droplets. The catch? Those droplets are probably sulphuric acid, floating above a surface hot enough to melt lead.",
         "topic": "space",
         "footage": "diamond|planet|clouds",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-06T04:32:42",
     },
     {
         "id": 8,
