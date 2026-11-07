@@ -114,8 +114,8 @@ DEFAULT_QUOTES = [
         "fact2": "Size matters too. Double Earth's size and its gravity doubles. Tall trees would struggle to stand, and big animals could break their legs just by running.",
         "topic": "space",
         "footage": "planet|solar system|forest trees",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-07T10:56:24",
     },
     {
         "id": 9,
