@@ -125,8 +125,8 @@ DEFAULT_QUOTES = [
         "fact2": "Electrons beat all of that. Scientists have never seen one decay, so they must last at least sixty six thousand trillion trillion years. That's about 5 quintillion times the age of the universe.",
         "topic": "space",
         "footage": "galaxy space|crystals|stars universe",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-08T11:06:19",
     },
     {
         "id": 10,
