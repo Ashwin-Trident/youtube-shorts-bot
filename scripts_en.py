@@ -136,8 +136,8 @@ DEFAULT_QUOTES = [
         "fact2": "The fastest jet, NASA's X-43A, hit Mach 9.6, nearly 11,900 kilometres an hour. But it couldn't take off by itself. A B-52 carried it up and a rocket boosted it before its engine fired for 10 seconds. At that speed, London to New York takes under 30 minutes.",
         "topic": "space",
         "footage": "astronaut|fighter jet|yo-yo",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-09T12:30:21",
     },
     {
         "id": 11,
