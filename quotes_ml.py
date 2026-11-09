@@ -253,8 +253,8 @@ DEFAULT_QUOTES = [
         "text": "ആളുകൾ നിങ്ങൾക്കു നേരെ കല്ലെറിയും, ആ കല്ലുകൾ നിങ്ങൾ നാഴികക്കല്ലുകളാക്കി മാറ്റണം.",
         "author": "Sachin Tendulkar",
         "author_ml": "സച്ചിൻ ടെണ്ടുൽക്കർ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-09T03:52:55",
     },
     {
         "id": 30,
