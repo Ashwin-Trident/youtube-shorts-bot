@@ -147,8 +147,8 @@ DEFAULT_QUOTES = [
         "fact2": "The ocean hides depth too. The Challenger Deep plunges about 10,935 metres down. Drop Everest into the Challenger Deep and its peak would still be 2 kilometres underwater. Only a few dozen people have ever been to the bottom.",
         "topic": "earth",
         "footage": "mountains|deep ocean|hawaii volcano",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-10T21:45:23",
     },
     {
         "id": 12,
