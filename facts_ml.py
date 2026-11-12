@@ -1550,8 +1550,8 @@ DEFAULT_QUOTES = [
         "text": "കേരളത്തിന്റെ സംസ്ഥാന പക്ഷി മലമുഴക്കി വേഴാമ്പലാണ്.",
         "topic": "kerala",
         "footage": "hornbill bird",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-12T12:05:09",
     },
     {
         "id": 192,
@@ -1814,8 +1814,8 @@ DEFAULT_QUOTES = [
         "text": "കേരളത്തിന്റെ സംസ്ഥാന മൃഗം ആനയാണ്.",
         "topic": "kerala",
         "footage": "elephant",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-12T12:05:09",
     },
     {
         "id": 225,
