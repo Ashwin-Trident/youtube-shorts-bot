@@ -158,8 +158,8 @@ DEFAULT_QUOTES = [
         "fact2": "Emperor penguins dive into that darkness. Most of their dives reach 100 to 200 metres, but the record is more than 550 metres. At that depth the pressure is 55 times stronger than at the surface. Penguins cope with solid bones and a heartbeat that slows to a few beats a minute.",
         "topic": "earth",
         "footage": "deep ocean|penguin swimming|underwater",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-12T01:51:12",
     },
     {
         "id": 13,
