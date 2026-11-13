@@ -169,8 +169,8 @@ DEFAULT_QUOTES = [
         "fact2": "In northern Australia, one storm even keeps a schedule. Hector the Convector forms over the Tiwi Islands almost every afternoon from September to March. Sea breezes collide there every day and build Hector up to 20 kilometres high, about twice as high as passenger jets fly.",
         "topic": "earth",
         "footage": "clouds timelapse|storm clouds|thunderstorm",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-13T11:51:58",
     },
     {
         "id": 14,
