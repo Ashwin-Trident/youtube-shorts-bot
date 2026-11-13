@@ -277,8 +277,8 @@ DEFAULT_QUOTES = [
         "text": "എളുപ്പമുള്ള ജീവിതത്തിനായി പ്രാർത്ഥിക്കരുത്. പ്രയാസമേറിയ ജീവിതം നേരിടാനുള്ള കരുത്തിനായി പ്രാർത്ഥിക്കുക.",
         "author": "Bruce Lee",
         "author_ml": "ബ്രൂസ് ലീ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-13T00:55:24",
     },
     {
         "id": 33,
