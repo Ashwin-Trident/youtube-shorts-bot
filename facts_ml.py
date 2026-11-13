@@ -1486,8 +1486,8 @@ DEFAULT_QUOTES = [
         "text": "ആപ്പിളും റോസാപ്പൂവും ഒരേ സസ്യകുടുംബത്തിൽ പെട്ടവയാണ്.",
         "topic": "food",
         "footage": "roses",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-13T19:05:35",
     },
     {
         "id": 184,
@@ -1638,8 +1638,8 @@ DEFAULT_QUOTES = [
         "text": "തേൻ ഒരിക്കലും കേടാകില്ല. ഈജിപ്തിലെ പുരാതന ശവകുടീരങ്ങളിൽ നിന്ന് കിട്ടിയ ആയിരക്കണക്കിന് വർഷം പഴക്കമുള്ള തേൻ ഇപ്പോഴും കഴിക്കാൻ പറ്റുന്നതാണ്.",
         "topic": "food",
         "footage": "honey",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-13T19:05:35",
     },
     {
         "id": 203,
