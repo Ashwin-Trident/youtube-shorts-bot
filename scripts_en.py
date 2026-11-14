@@ -180,8 +180,8 @@ DEFAULT_QUOTES = [
         "fact2": "But some booms come from clear skies, with no storm or plane in sight. They're called skyquakes, and people hear them from New York to Bangladesh. Scientists still can't explain them all. Meteors, faraway storms and gas bursting from the seabed are all suspects.",
         "topic": "earth",
         "footage": "lightning|storm clouds|thunderstorm",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-14T17:39:07",
     },
     {
         "id": 15,
