@@ -285,8 +285,8 @@ DEFAULT_QUOTES = [
         "text": "എത്ര മികച്ചവരായാലും ഇനിയും മെച്ചപ്പെടാം. അതാണ് ഏറ്റവും ആവേശകരമായ കാര്യം.",
         "author": "Tiger Woods",
         "author_ml": "ടൈഗർ വുഡ്സ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-14T11:11:51",
     },
     {
         "id": 34,
