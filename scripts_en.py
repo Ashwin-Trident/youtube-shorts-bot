@@ -191,8 +191,8 @@ DEFAULT_QUOTES = [
         "fact2": "The Bermuda Triangle is another map myth. It's one of the busiest shipping routes on Earth, so it sees more accidents, but no more than you'd expect. Insurers don't even charge extra to cross it.",
         "topic": "earth",
         "footage": "world map|globe|ocean ship",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-15T18:27:36",
     },
     {
         "id": 16,
