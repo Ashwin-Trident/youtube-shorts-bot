@@ -293,8 +293,8 @@ DEFAULT_QUOTES = [
         "text": "തോൽവി എന്റെ ശത്രുവല്ല. തോൽക്കുമോ എന്ന ഭയമാണ് എന്റെ ശത്രു.",
         "author": "Rafael Nadal",
         "author_ml": "റാഫേൽ നദാൽ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-15T11:51:22",
     },
     {
         "id": 35,
