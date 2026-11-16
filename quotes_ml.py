@@ -301,8 +301,8 @@ DEFAULT_QUOTES = [
         "text": "നിങ്ങളുടെ സ്നേഹം എന്നെ കരുത്തനാക്കുന്നു, നിങ്ങളുടെ വെറുപ്പ് എന്നെ തടുക്കാനാവാത്തവനാക്കുന്നു.",
         "author": "Cristiano Ronaldo",
         "author_ml": "ക്രിസ്റ്റ്യാനോ റൊണാൾഡോ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-16T12:31:05",
     },
     {
         "id": 36,
