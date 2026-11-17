@@ -202,8 +202,8 @@ DEFAULT_QUOTES = [
         "fact2": "Some land remembers far longer. In Australia, the Wurdi Youang stone arrangement lines up with sunsets at the solstices, and it may be thousands of years older than Stonehenge.",
         "topic": "earth",
         "footage": "old battlefield|stone circle|forest",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-17T00:07:52",
     },
     {
         "id": 17,
