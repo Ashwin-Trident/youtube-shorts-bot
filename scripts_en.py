@@ -213,8 +213,8 @@ DEFAULT_QUOTES = [
         "fact2": "Yet seeds are newcomers. The first land plants, about 470 million years ago, spread using spores. Seeds only appeared more than 100 million years later, and they changed life on land. A pine cone guards that invention, opening only when the weather's right.",
         "topic": "earth",
         "footage": "pine cone|rain forest|moss",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-18T12:39:39",
     },
     {
         "id": 18,
