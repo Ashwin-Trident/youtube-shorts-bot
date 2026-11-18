@@ -309,8 +309,8 @@ DEFAULT_QUOTES = [
         "text": "നിങ്ങൾ പിന്മാറുന്ന നിമിഷം, മറ്റൊരാളെ ജയിക്കാൻ അനുവദിക്കുകയാണ്.",
         "author": "Kobe Bryant",
         "author_ml": "കോബി ബ്രയന്റ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-18T02:05:03",
     },
     {
         "id": 37,
