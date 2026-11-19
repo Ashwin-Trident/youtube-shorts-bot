@@ -317,8 +317,8 @@ DEFAULT_QUOTES = [
         "text": "ചെയ്യാൻ കഴിയാത്തവ, ചെയ്യാൻ കഴിയുന്നവയ്ക്ക് തടസ്സമാകാൻ അനുവദിക്കരുത്.",
         "author": "John Wooden",
         "author_ml": "ജോൺ വുഡൻ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-19T17:08:05",
     },
     {
         "id": 38,
