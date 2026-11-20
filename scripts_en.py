@@ -224,8 +224,8 @@ DEFAULT_QUOTES = [
         "fact2": "And nobody can swallow their tongue, because it's attached to the floor of the mouth. That myth is dangerous. Never put anything in the mouth of someone having a seizure. Clear the space, time it, and turn them on their side afterward.",
         "topic": "body",
         "footage": "desert sand|first aid|beach sand",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-20T01:41:02",
     },
     {
         "id": 19,
