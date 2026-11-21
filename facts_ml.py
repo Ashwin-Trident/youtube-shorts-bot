@@ -1230,8 +1230,8 @@ DEFAULT_QUOTES = [
         "text": "ഒരു രാത്രി മുഴുവൻ ഉറങ്ങാതിരുന്നാൽ തലച്ചോറിന്റെ പ്രവർത്തനം മദ്യപിച്ച ഒരാളുടേതിന് സമാനമാകുമെന്ന് പഠനങ്ങൾ പറയുന്നു.",
         "topic": "mind",
         "footage": "tired person night",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-21T21:29:26",
     },
     {
         "id": 152,
@@ -1558,8 +1558,8 @@ DEFAULT_QUOTES = [
         "text": "തലച്ചോർ ശരീരഭാരത്തിന്റെ രണ്ട് ശതമാനം മാത്രമേയുള്ളൂ. പക്ഷേ ശരീരത്തിന്റെ ഇരുപത് ശതമാനം ഊർജ്ജവും ഉപയോഗിക്കുന്നത് അതാണ്.",
         "topic": "mind",
         "footage": "brain",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-21T21:29:26",
     },
     {
         "id": 193,
