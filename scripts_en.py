@@ -235,8 +235,8 @@ DEFAULT_QUOTES = [
         "fact2": "Polar bears aren't white either. Their hairs are see-through, and the skin underneath is black. In zoos, some polar bears have turned green when algae grew inside their hollow hairs. Hippos ooze a red blood sweat that works as sunscreen.",
         "topic": "animals",
         "footage": "hippo|polar bear|river",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-21T15:56:08",
     },
     {
         "id": 20,
