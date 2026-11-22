@@ -333,8 +333,8 @@ DEFAULT_QUOTES = [
         "text": "സ്വപ്നങ്ങളെ പിന്തുടരൂ, കാരണം സ്വപ്നങ്ങൾ യാഥാർത്ഥ്യമാകും.",
         "author": "Sachin Tendulkar",
         "author_ml": "സച്ചിൻ ടെണ്ടുൽക്കർ",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-22T15:53:23",
     },
     {
         "id": 40,
