@@ -246,8 +246,8 @@ DEFAULT_QUOTES = [
         "fact2": "Most cats live 12 to 18 years. Creme Puff from Texas lived to 38 years and three days. That's roughly 170 in human years. Her owner reportedly fed her bacon, eggs, broccoli and coffee with cream. Vets don't recommend copying that.",
         "topic": "animals",
         "footage": "old dog|cat sleeping|dog",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-22T21:33:29",
     },
     {
         "id": 21,
