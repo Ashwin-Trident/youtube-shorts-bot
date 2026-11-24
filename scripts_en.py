@@ -257,8 +257,8 @@ DEFAULT_QUOTES = [
         "fact2": "Most cats also only tolerate belly rubs. They prefer the chin, cheeks and the base of the ears. A cat showing its belly is showing trust, not asking for a rub. Let your cat come to you, and it'll stay longer.",
         "topic": "animals",
         "footage": "cat|cat sleeping|petting cat",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-24T19:21:17",
     },
     {
         "id": 22,
