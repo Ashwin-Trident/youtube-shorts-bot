@@ -341,7 +341,7 @@ DEFAULT_QUOTES = [
         "text": "അർപ്പണബോധമാണ് സ്വപ്നങ്ങളെ യാഥാർത്ഥ്യമാക്കുന്നത്.",
         "author": "Kobe Bryant",
         "author_ml": "കോബി ബ്രയന്റ്",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-24T04:36:01",
     },
 ]
