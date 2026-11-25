@@ -275,11 +275,11 @@ FACTS_PER_VIDEO = 2
 ML_NUMBERS = {1: "ഒന്ന്", 2: "രണ്ട്", 3: "മൂന്ന്", 4: "നാല്", 5: "അഞ്ച്"}
 
 
-# How often each fact topic comes up. Food and Kerala do best on the channel,
-# so roughly 50% food, 30% Kerala, 20% everything else (English has no
-# Kerala facts, so food takes a bigger share there).
-TOPIC_WEIGHT = {"food": 5, "kerala": 3, "mind": 0.8, "animals": 0.8, "body": 0.6,
-                "history": 0.5, "earth": 0.2, "space": 0.2, "aliens": 0.1}
+# How often each fact topic comes up. Cats and dogs, cute animals and food
+# get the most views and likes on the channel, so they come up most; Kerala
+# next; everything else rarely. (Never the same topic twice in a row.)
+TOPIC_WEIGHT = {"pets": 4, "food": 4, "animals": 2.5, "kerala": 1.5, "mind": 0.5,
+                "body": 0.4, "history": 0.3, "earth": 0.1, "space": 0.1, "aliens": 0.1}
 TOPIC_WINDOW = 20   # recent Shorts the weights are balanced over
 
 
@@ -306,7 +306,7 @@ def next_fact(lang):
 
 
 # English series names ("Food Facts You Never Knew | Part 7")
-SERIES_EN = {"space": "Space Facts", "aliens": "Alien Life Facts", "animals": "Animal Facts",
+SERIES_EN = {"pets": "Cat & Dog Facts", "space": "Space Facts", "aliens": "Alien Life Facts", "animals": "Animal Facts",
              "body": "Body Facts", "earth": "Earth Facts", "mind": "Brain Facts",
              "food": "Food Facts", "history": "History Facts", "kerala": "Kerala Facts"}
 
@@ -357,9 +357,13 @@ FACT_TOPICS = {
                              "galaxy space"],
                 "nasa": ["exoplanet", "europa", "galaxy", "hubble"],
                 "label_en": "ALIEN LIFE", "about_en": "alien life"},
+    "pets":    {"label": "പൂച്ചയും നായയും",    # Cats and dogs
+                "about": "പൂച്ചകളെയും നായ്ക്കളെയും കുറിച്ച്",   # about cats and dogs
+                "keywords": ["cute kitten", "cute puppy", "cat playing", "dog playing"],
+                "label_en": "CAT & DOG FACTS", "about_en": "cats and dogs"},
     "animals": {"label": "ജീവലോകം",           # The living world
                 "about": "ജീവികളെ കുറിച്ച്",         # about animals
-                "keywords": ["underwater", "wildlife", "ocean"],
+                "keywords": ["cute animals", "baby animals", "wildlife", "underwater"],
                 "label_en": "ANIMAL FACTS", "about_en": "animals"},
     "body":    {"label": "മനുഷ്യശരീരം",        # Human body
                 "about": "നമ്മുടെ ശരീരത്തെ കുറിച്ച്",  # about our body
@@ -1324,7 +1328,8 @@ def _fact_metadata(fact, cfg, lang):
                  "animals": " #animals #nature", "body": " #humanbody",
                  "earth": " #earth #nature", "kerala": " #kerala #keralafacts",
                  "mind": " #psychology #mind", "food": " #food #foodfacts",
-                 "history": " #history #historyfacts"}.get(fact.get("topic"), "")
+                 "history": " #history #historyfacts",
+                 "pets": " #cats #dogs #pets #cute"}.get(fact.get("topic"), "")
     if len(items) > 1:
         body = "\n\n".join(f"{i}. {f['text']}" for i, f in enumerate(items, 1))
     else:
