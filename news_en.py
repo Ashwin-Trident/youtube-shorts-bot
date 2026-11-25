@@ -34,7 +34,7 @@ DEFAULT_QUOTES = [
         "text": "Senegal gets its Africa Cup of Nations title back. The Court of Arbitration for Sport overturned the earlier ruling in Morocco's favour. || Pakistan's Zeeshan Ali has become the first foreign astronaut to board China's space station. || Fifteen year old Vaibhav Sooryavanshi smashed 204 runs off just 53 balls in a List A match. || Emirates was named the world's best airline in TIME's 2027 list, and IndiGo came sixth among the most reliable airlines. || Asian stock markets in Japan, South Korea, Taiwan and Hong Kong fell, as worries about AI continued.",
         "sources": "Al Jazeera, NDTV, Times of India, Indian Express (Nov 24–25, 2026)",
         "footage": "football trophy|space station|cricket stadium|airplane|stock market",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-25T13:13:54",
     },
 ]
