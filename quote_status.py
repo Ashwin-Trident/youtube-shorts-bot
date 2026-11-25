@@ -53,6 +53,8 @@ LANGUAGES = {
     "en_facts": {"module": "facts_en",  "name": "English facts"},
     "ml_space": {"module": "space_ml",  "name": "Malayalam space questions"},
     "en_scripts": {"module": "scripts_en", "name": "English scripts"},
+    "en_news":  {"module": "news_en",   "name": "English news"},
+    "ml_news":  {"module": "news_ml",   "name": "Malayalam news"},
 }
 
 
@@ -114,6 +116,19 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
         lines.append('    "text"      : the spoken explanation in Malayalam,\n')
         lines.append('    "nasa"      : NASA video library searches, separated by "|",\n')
         lines.append('    "footage"   : English Pexels searches (fallback footage), separated by "|",\n')
+    elif lang in ("en_news", "ml_news"):
+        word = "English" if lang == "en_news" else "Malayalam"
+        lines.append(f'Central store for the one-off {word} "today\'s top news" Shorts.\n')
+        lines.append('Each entry is one Short: the hook, then "Number one." story 1 … story 5.\n')
+        lines.append('\n')
+        lines.append('Each entry is a dict with these fields:\n')
+        lines.append('  {\n')
+        lines.append('    "id"        : unique int  (never reuse / reorder),\n')
+        lines.append('    "title"     : on-screen label,\n')
+        lines.append('    "hook"      : opening line (also the YouTube title),\n')
+        lines.append('    "text"      : the stories, separated by " || ",\n')
+        lines.append('    "sources"   : news outlets the stories came from (shown in the description),\n')
+        lines.append('    "footage"   : English Pexels searches, separated by "|",\n')
     elif lang == "en_scripts":
         lines.append('Central store for the English two-fact scripts used by the YouTube Shorts bot.\n')
         lines.append('Each entry is one Short: the hook, then "Number one." fact 1, "Number two." fact 2.\n')
@@ -157,7 +172,8 @@ def _write_quotes(quotes: list, lang: str = "en") -> None:
     lines.append('directly in this file so everything stays in one place — no separate JSON needed.\n')
     lines.append('\n')
     noun = {"ml_facts": "fact", "en_facts": "fact", "ml_story": "story part",
-            "ml_space": "question", "en_scripts": "script"}.get(lang, "quote")
+            "ml_space": "question", "en_scripts": "script",
+            "en_news": "news Short", "ml_news": "news Short"}.get(lang, "quote")
     lines.append(f'To add a new {noun}: append a new dict with a unique id,\n')
     lines.append('status="pending", and posted_at=None.\n')
     lines.append(f'{noun.capitalize()}s are never re-posted: once every {noun} is posted the bot stops\n')

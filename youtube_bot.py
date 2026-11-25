@@ -202,6 +202,42 @@ LANG_CONFIG = {
         "title_suffix":  " #shorts #facts",
         "comment_ask":   "Which fact surprised you the most? Tell us in the comments 👇",
     },
+    # One-off "today's top news" Shorts: stories separated by " || " in "text"
+    "en_news": {
+        "voices":        EDGE_VOICES,
+        "hooks":         [],     # every news Short has its own hook
+        "ending":        "Which story surprised you most? Comment below.",
+        "numbers":       {1: "Number one.", 2: "Number two.", 3: "Number three.",
+                          4: "Number four.", 5: "Number five."},
+        "caption_font":  BOLD_FONT,
+        "author_font":   BOLD_FONT,
+        "caption_chars": 16,
+        "line_spacing":  1.22,
+        "uppercase":     True,
+        "hashtags":      "#shorts #news #todaynews #topnews #trending",
+        "tags":          ["news", "today news", "top news", "trending news", "shorts"],
+        "comment_ask":   "Which story surprised you most? Tell us in the comments 👇",
+        "kind":          "news",
+        "yt_language":   "en",
+        "category":      "25",   # News & Politics
+    },
+    "ml_news": {
+        "voices":        {"male": ["ml-IN-MidhunNeural"], "female": ["ml-IN-SobhanaNeural"]},
+        "hooks":         [],
+        # "Which of these news surprised you? Comment."
+        "ending":        "ഇതിൽ ഏത് വാർത്തയാണ് നിങ്ങളെ ഞെട്ടിച്ചത്? കമന്റ് ചെയ്യൂ.",
+        "caption_font":  MALAYALAM_FONT,
+        "author_font":   MALAYALAM_FONT,
+        "caption_chars": 24,
+        "line_spacing":  1.55,
+        "uppercase":     False,
+        "hashtags":      "#shorts #malayalam #news #malayalamnews #trending",
+        "tags":          ["malayalam news", "news", "today news", "malayalam", "shorts"],
+        "comment_ask":   "ഇതിൽ ഏത് വാർത്തയാണ് നിങ്ങളെ ഞെട്ടിച്ചത്? കമന്റിൽ പറയൂ 👇",
+        "kind":          "news",
+        "yt_language":   "ml",
+        "category":      "25",   # News & Politics
+    },
     "en_scripts": {
         "voices":        EDGE_VOICES,
         "hooks":         [],     # every script has its own hook
@@ -1112,6 +1148,14 @@ def create_youtube_short(quote, lang="en"):
         overlay  = dict(question=quote["question"])
         hook     = quote["question"]
         items    = [quote]
+    elif cfg["kind"] == "news":
+        sport    = None
+        gender   = random.choice(["male", "female"])
+        keywords = quote["footage"].split("|") + ["city people walking", "earth from space"]
+        nasa_kws = []
+        overlay  = dict(author=quote["title"], prefix="")
+        hook     = quote["hook"]
+        items    = [quote]
     elif cfg["kind"] == "script":
         topic    = FACT_TOPICS.get(quote.get("topic"), FACT_TOPICS["earth"])
         sport    = None
@@ -1152,6 +1196,14 @@ def create_youtube_short(quote, lang="en"):
             if i == 2:
                 mid = len(body)          # right after the first fact
             body += [number] + split_into_segments(f["text"], uppercase=cfg["uppercase"])
+    elif cfg["kind"] == "news":
+        # "Number one." story 1 … "Number five." story 5, ask after story 2
+        body, mid = [], 0
+        for i, story in enumerate(quote_text.split(" || "), 1):
+            number = cfg["numbers"][i] if cfg.get("numbers") else f"{ML_NUMBERS[i]}."
+            if i == 3:
+                mid = len(body)
+            body += [number] + split_into_segments(story, uppercase=cfg["uppercase"])
     elif cfg["kind"] == "script":
         # Same shape as the fact lists: "Number one." fact 1, ask, "Number two." fact 2
         body = [cfg["numbers"][1]] + split_into_segments(quote_text, uppercase=cfg["uppercase"])
@@ -1230,6 +1282,14 @@ def build_metadata(quote, sport, lang="en"):
         return _story_metadata(quote, cfg, lang)
     if cfg["kind"] == "script":
         return _script_metadata(quote, cfg)
+    if cfg["kind"] == "news":
+        stories = quote["text"].split(" || ")
+        tags    = " #shorts #malayalam #news" if cfg["yt_language"] == "ml" else " #shorts #news"
+        title   = f"{quote['hook']}{tags}"[:100]
+        body    = "\n\n".join(f"{i}. {t}" for i, t in enumerate(stories, 1))
+        description = (f"{quote['title']}\n\n{body}\n\nSources: {quote['sources']}\n\n"
+                       f"{cfg['comment_ask']}\n\n{cfg['hashtags']}")
+        return title, description, cfg["tags"]
     if cfg["kind"] == "explainer":
         title = f"{quote['question']} {cfg['title_tags']}"
         if len(title) > 100:
@@ -1424,7 +1484,8 @@ def _git_commit_status(quote_id, lang: str = "en") -> bool:
 
     label  = {"en": "quote", "ml": "Malayalam quote", "ml_facts": "Malayalam fact",
               "en_facts": "English fact", "ml_space": "Malayalam space question",
-              "ml_story": "Malayalam story part", "en_scripts": "English script"}.get(lang, lang)
+              "ml_story": "Malayalam story part", "en_scripts": "English script",
+              "en_news": "English news Short", "ml_news": "Malayalam news Short"}.get(lang, lang)
     if isinstance(quote_id, (list, tuple)):
         label, quote_id = label + "s", ",".join(str(i) for i in quote_id)
     msg    = f"chore: mark {label} id={quote_id} as posted [skip ci]"
