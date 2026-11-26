@@ -268,8 +268,8 @@ DEFAULT_QUOTES = [
         "fact2": "And why do cats sit on your laptop? It's warm, but mostly it smells like you. Your cat is mixing its scent with yours, marking you as family.",
         "topic": "animals",
         "footage": "orange cat|cat laptop|kitten",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-26T06:14:31",
     },
     {
         "id": 23,
