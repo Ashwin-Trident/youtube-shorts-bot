@@ -279,8 +279,8 @@ DEFAULT_QUOTES = [
         "fact2": "About one in six dogs also regularly eats poo, likely a leftover wolf habit of keeping dens clean. Shouting can make it worse, because your dog learns to eat it faster. Clean up quickly and reward your dog for coming to you.",
         "topic": "animals",
         "footage": "dog head tilt|dog playing|puppy",
-        "status": "pending",
-        "posted_at": None,
+        "status": "posted",
+        "posted_at": "2026-11-27T23:57:33",
     },
     {
         "id": 24,
